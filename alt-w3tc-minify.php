@@ -1,24 +1,27 @@
 <?php
 /*
-Plugin Name: Alternative W3TC Minify Configuration Script
-*/
+ * Plugin Name: Alternative W3TC Minify Configuration Script
+ * Description: record the sent order of the JavaScript files and use this to create a W3TC Minify configuration
+ * Author: Magenta Cuda
+ * Author URI: http://magentacuda.com
+ */
 
 class MC_Alt_W3TC_Minify {
     const OPTION_NAME = 'mc_alt_w3tc_minify';
     private static $theme;
     private static $basename;
-    private static $files = [ 'include' => [], 'include_footer' => [] ];
+    private static $files = [ 'include' => [ 'files' => [] ], 'include_footer' => [ 'files' => [] ] ];
     public static function init() {
         add_filter( 'template_include', function( $template ) {
-			self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
-			self::$basename = basename( $template, '.php' );
+            self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
+            self::$basename = basename( $template, '.php' );
         } );
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
-                self::$files['include_footer'][] = $src;
+                self::$files['include_footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
-                self::$files['include'][] = $src;
+                self::$files['include']['files'][] = $src;
             }
         }, 10, 3 );
         add_action( 'shutdown', function() {
@@ -38,8 +41,14 @@ class MC_Alt_W3TC_Minify {
         } );
     }
     private static function update_config_file( $new_data ) {
-        $old_config = \W3TC\Config::util_array_from_storage( 0, FALSE );
-        error_log( 'MC_Alt_W3TC_Minify::update_config_file():$old_config=' . print_r( $old_config, TRUE ) );
+        $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
+        error_log( 'MC_Alt_W3TC_Minify::update_config_file():old $config=' . print_r( $config, TRUE ) );
+        foreach( $config['minify.js.groups'] as $theme => &$data ) {
+            if ( ! empty( $new_data[ $theme ] ) ) {
+                $data = array_merge( $data, $new_data[ $theme ] );
+            }
+        }
+        error_log( 'MC_Alt_W3TC_Minify::update_config_file():new $config=' . print_r( $config, TRUE ) );
     }
 }
 
