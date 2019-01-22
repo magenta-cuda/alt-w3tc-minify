@@ -11,15 +11,16 @@ class MC_Alt_W3TC_Minify {
     const CONF_FILE_NAME = 'mc_alt_w3tc_minify.json';
     private static $theme;
     private static $basename;
-    private static $files = [ 'include' => [ 'files' => [] ], 'include_footer' => [ 'files' => [] ] ];
+    private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
     public static function init() {
         add_filter( 'template_include', function( $template ) {
+            # $theme is a MD5 hash of the theme path, template and stylesheet 
             self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
             self::$basename = basename( $template, '.php' );
         } );
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
-                self::$files['include_footer']['files'][] = $src;
+                self::$files['include-footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
                 self::$files['include']['files'][] = $src;
@@ -29,13 +30,18 @@ class MC_Alt_W3TC_Minify {
             if ( ! self::$theme ) {
                 return;
             }
+            # The option value is a two dimensional array indexed first by theme then by template.
+            # The array values are arrays of JavaScript file names.
+            # Deleting this option will force a rebuild of W3TC configuration file.
             $new_data = $old_data = get_option( self::OPTION_NAME, [] );
             if ( ! array_key_exists( self::$theme, $new_data ) ) {
                 $new_data[ self::$theme ] = [];
             }
+            # update the array item for the current theme and template
             $new_data[ self::$theme ][ self::$basename ] = self::$files;
             error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::$new_data=' . print_r( $new_data, true ) );
             if ( $new_data !== $old_data ) {
+                # if the minify JavaScript configuration has changed save the new configuration and generate a new W3TC configuration file
                 update_option( self::OPTION_NAME, $new_data );
                 self::update_config_file( $new_data );
             }
@@ -54,6 +60,7 @@ class MC_Alt_W3TC_Minify {
         error_log( 'MC_Alt_W3TC_Minify::update_config_file():old $config=' . print_r( $config, TRUE ) );
         foreach( $config['minify.js.groups'] as $theme => &$data ) {
             if ( ! empty( $new_data[ $theme ] ) ) {
+                # replace matching template items for this theme
                 $data = array_merge( $data, $new_data[ $theme ] );
             }
         }
