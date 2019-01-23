@@ -31,17 +31,23 @@
  * configuration file will be built. Further, if the ordered list of JavaScript
  * files for a template changes then this will also build a new compatible W3TC
  * configuration file. This of course assumes that the ordered list of JavaScript
- * files for a template is fixed. If your web pages are dynamically cumputing
+ * files for a template is fixed. If your web pages are dynamically computing
  * the JavaScript files then this will not work.
  * 
  * This generated JSON configuration file can be downloaded and further edited to
  * fine tune the minify process and imported back into W3TC. The download link is
  * on the "Installed Plugins" admin page after the "Deactivate" link.
+ *
+ * The following WP-CLI commands will display the database data of this plugin
+ *
+ *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify"));'
+ *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
  */
 
 class MC_Alt_W3TC_Minify {
-    const OPTION_NAME    = 'mc_alt_w3tc_minify';
-    const CONF_FILE_NAME = 'mc_alt_w3tc_minify.json';
+    const OPTION_NAME     = 'mc_alt_w3tc_minify';
+    const CONF_FILE_NAME  = 'mc_alt_w3tc_minify.json';
+    const OPTION_LOG_NAME = 'mc_alt_w3tc_minify_log';
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -80,6 +86,13 @@ class MC_Alt_W3TC_Minify {
                 # if the minify JavaScript configuration has changed save the new configuration and generate a new W3TC configuration file
                 update_option( self::OPTION_NAME, $data );
                 self::update_config_file( $data );
+                # update the history of changes to the ordered list of Javascript files for themes and templates
+                $log = get_option( self::OPTION_LOG_NAME, [] );
+                if ( ! array_key_exists( self::$theme, $log ) ) {
+                    $log[ self::$theme ] = [];
+                }
+                $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' );
+                update_option( self::OPTION_LOG_NAME, $log );
             }
         } );
         add_filter( 'plugin_action_links_alt-w3tc-minify/alt-w3tc-minify.php', function( $links ) {
