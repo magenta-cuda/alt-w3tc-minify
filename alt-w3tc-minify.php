@@ -67,17 +67,19 @@ class MC_Alt_W3TC_Minify {
             # The array values are arrays of JavaScript file names.
             # Deleting this option will force a rebuild of W3TC configuration file.
             # However, this will require again viewing a web page for all templates.
-            $new_data = $old_data = get_option( self::OPTION_NAME, [] );
-            if ( ! array_key_exists( self::$theme, $new_data ) ) {
-                $new_data[ self::$theme ] = [];
+            $data = get_option( self::OPTION_NAME, [] );
+            if ( ! array_key_exists( self::$theme, $data ) ) {
+                $data[ self::$theme ] = [];
             }
-            # update the array item for the current theme and template
-            $new_data[ self::$theme ][ self::$basename ] = self::$files;
-            # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::$new_data=' . print_r( $new_data, true ) );
-            if ( $new_data !== $old_data ) {
+            # Check if the ordered JavaScript file list has changed for the current theme and template.
+            $datum =& $data[ self::$theme ][ self::$basename ];
+            if ( self::$files !== $datum ) {
+                # update the array item for the current theme and template
+                $datum = self::$files;
+                # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
                 # if the minify JavaScript configuration has changed save the new configuration and generate a new W3TC configuration file
-                update_option( self::OPTION_NAME, $new_data );
-                self::update_config_file( $new_data );
+                update_option( self::OPTION_NAME, $data );
+                self::update_config_file( $data );
             }
         } );
         add_filter( 'plugin_action_links_alt-w3tc-minify/alt-w3tc-minify.php', function( $links ) {
