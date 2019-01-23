@@ -38,16 +38,18 @@
  * fine tune the minify process and imported back into W3TC. The download link is
  * on the "Installed Plugins" admin page after the "Deactivate" link.
  *
- * The following WP-CLI commands will display the database data of this plugin
+ * The following WP-CLI commands will display the database data of this plugin:
  *
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
+ *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
  */
 
 class MC_Alt_W3TC_Minify {
     const OPTION_NAME     = 'mc_alt_w3tc_minify';
     const CONF_FILE_NAME  = 'mc_alt_w3tc_minify.json';
     const OPTION_LOG_NAME = 'mc_alt_w3tc_minify_log';
+    const TRANSIENT_NAME  = 'mc_alt_w3tc_minify';
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -80,29 +82,51 @@ class MC_Alt_W3TC_Minify {
             # Check if the ordered JavaScript file list has changed for the current theme and template.
             $datum =& $data[ self::$theme ][ self::$basename ];
             if ( self::$files !== $datum ) {
-                # update the array item for the current theme and template
+                # Update the array item for the current theme and template.
                 $datum = self::$files;
                 # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
-                # if the minify JavaScript configuration has changed save the new configuration and generate a new W3TC configuration file
+                # The minify JavaScript configuration has changed so save the new configuration and generate a new W3TC configuration file.
                 update_option( self::OPTION_NAME, $data );
                 self::update_config_file( $data );
-                # update the history of changes to the ordered list of Javascript files for themes and templates
+                # Update the history of changes to the ordered list of Javascript files for themes and templates.
                 $log = get_option( self::OPTION_LOG_NAME, [] );
                 if ( ! array_key_exists( self::$theme, $log ) ) {
                     $log[ self::$theme ] = [];
                 }
                 $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' );
                 update_option( self::OPTION_LOG_NAME, $log );
+                # Create or update the transient notices. 
+                $notice = 'alt-w3tc-minify: The ordered list of JavaScript files for the theme: "' . self::$theme . '" and the template: "' . self::$basename
+                              . '" has been updated.'; 
+                $notices = get_transient( self::TRANSIENT_NAME );
+                if ( $notices === FALSE ) {
+                    $notices = [ $notice ];
+                } else {
+                    $notices[] = $notice;
+                }
+                set_transient( self::TRANSIENT_NAME, $notices );
             }
         } );
         add_filter( 'plugin_action_links_alt-w3tc-minify/alt-w3tc-minify.php', function( $links ) {
             if ( file_exists( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME ) ) {
+                # Add the download link for the generated conf file after the "Deactivate" link.
                 array_push( $links,
                     '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME . '">Download Alt W3TC Conf File</a>'
                 );
             }
             return $links;
         } );
+        # If the minify JavaScript configuration has changed display the changes as an admin notice.
+        if ( is_admin() && ! wp_doing_ajax() && ( $notices = get_transient( self::TRANSIENT_NAME ) ) ) {
+            add_action( 'admin_notices', function() use ( $notices ) {
+?>
+<div class="notice notice-info is-dismissible">
+    <?php echo implode( '<br>', $notices ); ?>
+</div>
+<?php
+            } );
+            delete_transient( self::TRANSIENT_NAME );
+        }
     }
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
@@ -114,6 +138,7 @@ class MC_Alt_W3TC_Minify {
             }
         }
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():new $config=' . print_r( $config, TRUE ) );
+        # Save the new configuration to a disk file which can be downloaded.
         if ( defined( 'JSON_PRETTY_PRINT' ) ) {
             $config = json_encode( $config, JSON_PRETTY_PRINT );
         } else {  // for older php versions
