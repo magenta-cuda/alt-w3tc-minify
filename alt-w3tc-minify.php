@@ -54,11 +54,13 @@ class MC_Alt_W3TC_Minify {
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
     public static function init() {
+        # Get the current theme and template.
         add_filter( 'template_include', function( $template ) {
             # $theme is a MD5 hash of the theme path, template and stylesheet 
             self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
             self::$basename = basename( $template, '.php' );
         } );
+        # When each JavaScript file is sent add an entry to the ordered list of JavaScript files for the current theme and template.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
                 self::$files['include-footer']['files'][] = $src;
@@ -67,6 +69,7 @@ class MC_Alt_W3TC_Minify {
                 self::$files['include']['files'][] = $src;
             }
         }, 10, 3 );
+        # On shutdown update the ordered list of Javascript files for the current theme and template if it is different from its previous value.
         add_action( 'shutdown', function() {
             if ( ! self::$theme ) {
                 return;
@@ -116,24 +119,33 @@ class MC_Alt_W3TC_Minify {
             }
             return $links;
         } );
-        # If the minify JavaScript configuration has changed display the changes as an admin notice.
+        # If the minify JavaScript configuration has changed display an admin notice.
         if ( is_admin() && ! wp_doing_ajax() && ( $notices = get_transient( self::TRANSIENT_NAME ) ) ) {
-            add_action( 'admin_notices', function() use ( $notices ) {
+            $url = WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME;
+            add_action( 'admin_notices', function() use ( $notices, $url ) {
 ?>
 <div class="notice notice-info is-dismissible">
     <?php echo implode( '<br>', $notices ); ?>
+    <br>The new configuration file can be downloaded from <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
 </div>
 <?php
             } );
             delete_transient( self::TRANSIENT_NAME );
         }
+        # On deactivation remove everything created by this plugin. 
+        register_deactivation_hook( __FILE__, function() {
+            delete_transient( self::TRANSIENT_NAME );
+            delete_option( self::OPTION_NAME );
+            delete_option( self::OPTION_LOG_NAME );
+            @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
+        } );
     }
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():old $config=' . print_r( $config, TRUE ) );
         foreach( $config['minify.js.groups'] as $theme => &$data ) {
             if ( ! empty( $new_data[ $theme ] ) ) {
-                # replace matching template items for this theme
+                # Replace matching template items for this theme.
                 $data = array_merge( $data, $new_data[ $theme ] );
             }
         }
@@ -144,9 +156,7 @@ class MC_Alt_W3TC_Minify {
         } else {  // for older php versions
             $config = json_encode( $config );
         }
-        $filename = W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME;
-        $url      = WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME;
-        \W3TC\Util_File::file_put_contents_atomic( $filename, $config );
+        \W3TC\Util_File::file_put_contents_atomic( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME, $config );
     }
 }
 
