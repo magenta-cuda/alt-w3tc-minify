@@ -68,10 +68,10 @@ class MC_Alt_W3TC_Minify {
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
-    # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted or removed
-    # causing admin-bar.js to be added or removed from the ordered list of JavaScript files which will trigger a rebuild of
-    # the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered list of JavaScript files. Other
-    # files that need to be omitted can be entered into $files_to_skip
+    # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
+    # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
+    # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
+    # list of JavaScript files. Other files that need to be omitted can be entered into $files_to_skip.
     private static $files_to_skip = [
         "/wp-includes/js/admin-bar.js"
     ];
@@ -82,8 +82,10 @@ class MC_Alt_W3TC_Minify {
             self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
             self::$basename = basename( $template, '.php' );
         } );
-        # When each JavaScript file is sent add an entry to the ordered list of JavaScript files for the current theme and template.
+        # When each JavaScript file is sent by the server add an entry to the ordered list of JavaScript files for
+        # the current theme and template.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
+            # skip JavaScript files like admin-bar.js
             foreach ( self::$files_to_skip as $file ) {
                 if ( strpos( $src, $file ) !== FALSE ) {
                     return $tag;
@@ -97,7 +99,8 @@ class MC_Alt_W3TC_Minify {
             }
             return $tag;
         }, 10, 3 );
-        # On shutdown update the ordered list of Javascript files for the current theme and template if it is different from its previous value.
+        # On shutdown update the ordered list of Javascript files for the current theme and template if it is
+        # different from its previous value.
         add_action( 'shutdown', function() {
             if ( ! self::$theme ) {
                 return;
@@ -116,7 +119,8 @@ class MC_Alt_W3TC_Minify {
                 # Update the array item for the current theme and template.
                 $datum = self::$files;
                 # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
-                # The minify JavaScript configuration has changed so save the new configuration and generate a new W3TC configuration file.
+                # The minify JavaScript configuration has changed so save the new configuration into the database
+                # and generate a new W3TC configuration file.
                 update_option( self::OPTION_NAME, $data );
                 self::update_config_file( $data );
                 # Update the history of changes to the ordered list of Javascript files for themes and templates.
@@ -127,8 +131,8 @@ class MC_Alt_W3TC_Minify {
                 $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' );
                 update_option( self::OPTION_LOG_NAME, $log );
                 # Create or update the transient notices. 
-                $notice = 'alt-w3tc-minify: The ordered list of JavaScript files for the theme: "' . self::$theme . '" and the template: "' . self::$basename
-                              . '" has been updated.'; 
+                $notice = 'alt-w3tc-minify: The ordered list of JavaScript files for the theme: "' . self::$theme
+                              . '" and the template: "' . self::$basename . '" has been updated.'; 
                 $notices = get_transient( self::TRANSIENT_NAME );
                 if ( $notices === FALSE ) {
                     $notices = [ $notice ];
@@ -142,7 +146,8 @@ class MC_Alt_W3TC_Minify {
             if ( file_exists( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME ) ) {
                 # Add the download link for the generated conf file after the "Deactivate" link.
                 array_push( $links,
-                    '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME . '">Download Alt W3TC Conf File</a>'
+                    '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME
+                        . '">Download Alt W3TC Conf File</a>'
                 );
             }
             return $links;
