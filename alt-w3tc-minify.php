@@ -68,6 +68,13 @@ class MC_Alt_W3TC_Minify {
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
+    # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted or removed
+    # causing admin-bar.js to be added or removed from the ordered list of JavaScript files which will trigger a rebuild of
+    # the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered list of JavaScript files. Other
+    # files that need to be omitted can be entered into $files_to_skip
+    private static $files_to_skip = [
+        "/wp-includes/js/admin-bar.js"
+    ];
     public static function init() {
         # Get the current theme and template.
         add_filter( 'template_include', function( $template ) {
@@ -77,12 +84,18 @@ class MC_Alt_W3TC_Minify {
         } );
         # When each JavaScript file is sent add an entry to the ordered list of JavaScript files for the current theme and template.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
+            foreach ( self::$files_to_skip as $file ) {
+                if ( strpos( $src, $file ) !== FALSE ) {
+                    return $tag;
+                }
+            }
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
                 self::$files['include-footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
                 self::$files['include']['files'][] = $src;
             }
+            return $tag;
         }, 10, 3 );
         # On shutdown update the ordered list of Javascript files for the current theme and template if it is different from its previous value.
         add_action( 'shutdown', function() {
