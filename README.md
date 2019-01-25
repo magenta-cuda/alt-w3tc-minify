@@ -1,3 +1,7 @@
+Version 0.9.7.1 of W3TC(released 01/24/2019) appears to be seriously broken with
+respect to minification. I am suspending development until a new version is
+released.
+
 The W3 Total Cache auto minify mode does not work on my web site. The problem
 is the order of the JavaScript files using the auto minify mode is different
 from the order without minification. This results in undefined JavaScript
