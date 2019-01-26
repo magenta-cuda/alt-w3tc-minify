@@ -81,6 +81,7 @@ class MC_Alt_W3TC_Minify {
             # $theme is a MD5 hash of the theme path, template and stylesheet 
             self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
             self::$basename = basename( $template, '.php' );
+            return $template;
         } );
         # When each JavaScript file is sent by the server add an entry to the ordered list of JavaScript files for
         # the current theme and template.
