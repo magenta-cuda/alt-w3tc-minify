@@ -64,6 +64,9 @@
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
  *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
+ *
+ * The second command is useful in verifying that a view of a representative web
+ * page has been done for each of your templates.
  */
 
 class MC_Alt_W3TC_Minify {
