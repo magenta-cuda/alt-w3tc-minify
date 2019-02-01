@@ -1,6 +1,5 @@
-Version 0.9.7.1 of W3TC(released 01/24/2019) appears to be seriously broken with
-respect to minification. I am suspending development until a new version is
-released.
+This plugin does not work with the latest Version 0.9.7.2 of W3TC (released
+01/30/2019). I will update this README when I have fixed the problem.
 
 The W3 Total Cache auto minify mode does not work on my web site. The problem
 is the order of the JavaScript files using the auto minify mode is different
