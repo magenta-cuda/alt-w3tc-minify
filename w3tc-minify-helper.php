@@ -1,8 +1,8 @@
 <?php
 /*
- * Plugin Name: Alternative W3TC Minify Configuration Script
+ * Plugin Name: W3TC Minify Helper
  * Description: record the sent order of the JavaScript files and use this to create a W3TC Minify configuration
- * Version 1.0
+ * Version: 1.0
  * Plugin URI: http://magentacuda.com/an-alternate-way-to-set-w3tc-minify-file-order/
  * Author: Magenta Cuda
  * Author URI: http://magentacuda.com
@@ -63,6 +63,7 @@
  *
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
+ *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_skipped"));'
  *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
  *
  * The second command is useful in verifying that a view of a representative web
@@ -70,10 +71,12 @@
  */
 
 class MC_Alt_W3TC_Minify {
-    const OPTION_NAME     = 'mc_alt_w3tc_minify';
-    const CONF_FILE_NAME  = 'mc_alt_w3tc_minify.json';
-    const OPTION_LOG_NAME = 'mc_alt_w3tc_minify_log';
-    const TRANSIENT_NAME  = 'mc_alt_w3tc_minify';
+    const PLUGIN_NAME         = 'W3TC Minify Helper';
+    const OPTION_NAME         = 'mc_alt_w3tc_minify';
+    const CONF_FILE_NAME      = 'mc_alt_w3tc_minify.json';
+    const OPTION_LOG_NAME     = 'mc_alt_w3tc_minify_log';
+    const OPTION_SKIPPED_NAME = 'mc_alt_w3tc_minify_skipped';
+    const TRANSIENT_NAME      = 'mc_alt_w3tc_minify';
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -84,6 +87,7 @@ class MC_Alt_W3TC_Minify {
     private static $files_to_skip = [
         "/wp-includes/js/admin-bar.js"
     ];
+    private static $skip = TRUE;
     public static function init() {
         # Get additional files to skip.
         $files_to_skip = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
@@ -95,16 +99,43 @@ class MC_Alt_W3TC_Minify {
             return trim( $file );
         }, $files_to_skip );
         self::$files_to_skip = array_merge( self::$files_to_skip, $files_to_skip );
-        # Get the current theme and template.
-        add_filter( 'template_include', function( $template ) {
+        $initial_template = NULL;
+        add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
+            $initial_template = $template;
+            return $template;
+        }, 0, 1 );
+        add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
+            # Get the current theme and template.
             # $theme is a MD5 hash of the theme path, template and stylesheet. 
             self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
             self::$basename = basename( $template, '.php' );
+            # W3TC cannot handle templates included using the filter 'template_include' so log it and send an error notice.
+            if ( $template !== $initial_template ) {
+                $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
+                if ( ! array_key_exists( self::$theme, $skipped ) ) {
+                    $skipped[ self::$theme ] = [];
+                }
+                if ( ! in_array( self::$basename, $skipped[ self::$theme ] ) ) {
+                    self::add_log_entry( "Skipped because it is an override of $initial_template." );
+                    self::add_notice( self::PLUGIN_NAME . <<<EOD
+: Template "$template" cannot be minified because it was included using the filter 'template_include'
+to override the template "$initial_template". W3TC cannot handle templates included using the filter 'template_include'.
+EOD
+                    );
+                    $skipped[ self::$theme ][] = self::$basename;
+                    update_option( self::OPTION_SKIPPED_NAME, $skipped );
+                }
+            } else {
+                self::$skip = FALSE;
+            }
             return $template;
-        } );
+        }, PHP_INT_MAX, 1 );
         # When each JavaScript file is sent by the server add an entry to the ordered list of JavaScript files for
         # the current theme and template.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
+            if ( self::$skip ) {
+                return $tag;
+            }
             # Skip JavaScript files like admin-bar.js.
             foreach ( self::$files_to_skip as $file ) {
                 if ( strpos( $src, $file ) !== FALSE ) {
@@ -122,7 +153,7 @@ class MC_Alt_W3TC_Minify {
         # On shutdown update the ordered list of Javascript files for the current theme and template if it is
         # different from its previous value.
         add_action( 'shutdown', function() {
-            if ( ! self::$theme ) {
+            if ( self::$skip ) {
                 return;
             }
             # The option value is a two dimensional array indexed first by theme then by template.
@@ -144,30 +175,20 @@ class MC_Alt_W3TC_Minify {
                 update_option( self::OPTION_NAME, $data );
                 self::update_config_file( $data );
                 # Update the history of changes to the ordered list of Javascript files for themes and templates.
-                $log = get_option( self::OPTION_LOG_NAME, [] );
-                if ( ! array_key_exists( self::$theme, $log ) ) {
-                    $log[ self::$theme ] = [];
-                }
-                $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' );
-                update_option( self::OPTION_LOG_NAME, $log );
+                self::add_log_entry( 'Updated.' );
                 # Create or update the transient notices. 
-                $notice = 'alt-w3tc-minify: The ordered list of JavaScript files for the theme: "' . self::$theme
-                              . '" and the template: "' . self::$basename . '" has been updated.'; 
-                $notices = get_transient( self::TRANSIENT_NAME );
-                if ( $notices === FALSE ) {
-                    $notices = [ $notice ];
-                } else {
-                    $notices[] = $notice;
-                }
-                set_transient( self::TRANSIENT_NAME, $notices );
+                self::add_notice( self::PLUGIN_NAME .': The ordered list of JavaScript files for the theme: "' . self::$theme
+                                      . '" and the template: "' . self::$basename . '" has been updated.' );
             }
         } );
-        add_filter( 'plugin_action_links_alt-w3tc-minify/alt-w3tc-minify.php', function( $links ) {
+    }
+    public static function admin_init() {
+        add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
             if ( file_exists( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME ) ) {
                 # Add the download link for the generated conf file after the "Deactivate" link.
                 array_push( $links,
                     '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME
-                        . '">Download Alt W3TC Conf File</a>'
+                        . '">Download New W3TC Conf File</a>'
                 );
             }
             return $links;
@@ -178,8 +199,16 @@ class MC_Alt_W3TC_Minify {
             add_action( 'admin_notices', function() use ( $notices, $url ) {
 ?>
 <div class="notice notice-info is-dismissible">
-    <?php echo implode( '<br>', $notices ); ?>
+<?php
+                echo implode( '<br>', $notices );
+                if ( array_reduce( $notices, function( $or, $notice ) {
+                    return $or | strpos( $notice, 'updated' ) !== FALSE;
+                }, FALSE ) ) {
+?>
     <br>The new configuration file can be downloaded from <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
+<?php
+                }
+?>
 </div>
 <?php
             } );
@@ -190,16 +219,20 @@ class MC_Alt_W3TC_Minify {
             delete_transient( self::TRANSIENT_NAME );
             delete_option( self::OPTION_NAME );
             delete_option( self::OPTION_LOG_NAME );
+            delete_option( self::OPTION_SKIPPED_NAME );
             @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
         } );
     }
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():old $config=' . print_r( $config, TRUE ) );
-        foreach( $config['minify.js.groups'] as $theme => &$data ) {
-            if ( ! empty( $new_data[ $theme ] ) ) {
+        $config_minify_js_groups =& $config['minify.js.groups'];
+        foreach ( $new_data as $theme => $data ) {
+            if ( array_key_exists( $theme, $config_minify_js_groups ) ) {
                 # Replace matching template items for this theme.
-                $data = array_merge( $data, $new_data[ $theme ] );
+                $config_minify_js_groups[ $theme ] = array_merge( $config_minify_js_groups[ $theme ], $data );
+            } else {
+                $config_minify_js_groups[ $theme ] = $data;
             }
         }
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():new $config=' . print_r( $config, TRUE ) );
@@ -211,6 +244,44 @@ class MC_Alt_W3TC_Minify {
         }
         \W3TC\Util_File::file_put_contents_atomic( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME, $config );
     }
+    private static function add_log_entry( $entry ) {
+        $log = get_option( self::OPTION_LOG_NAME, [] );
+        if ( ! array_key_exists( self::$theme, $log ) ) {
+            $log[ self::$theme ] = [];
+        }
+        $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' ) . ": $entry ";
+        update_option( self::OPTION_LOG_NAME, $log );
+    }
+    private static function add_notice( $notice ) {
+        $notices = get_transient( self::TRANSIENT_NAME );
+        if ( $notices === FALSE ) {
+            $notices = [ $notice ];
+        } else {
+            $notices[] = $notice;
+        }
+        set_transient( self::TRANSIENT_NAME, $notices );
+    }
 }
-
-MC_Alt_W3TC_Minify::init();
+# Abort execution if the W3 Total Cache plugin is not activated.
+if ( defined( 'WP_ADMIN' ) ) {
+    add_action( 'admin_init', function() {
+        if ( is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+            MC_Alt_W3TC_Minify::admin_init();
+        } else {
+            add_action( 'admin_notices', function() {
+    ?>
+    <div class="notice notice-info is-dismissible">
+        Execution of the W3TC Minify Helper plugin aborted because the required W3 Total Cache plugin is not activated.
+    </div>
+    <?php
+            } );
+        }
+    } );
+} else {
+    add_action( 'wp_loaded', function() {
+        include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
+        if ( is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+            MC_Alt_W3TC_Minify::init();
+        }
+    } );
+}
