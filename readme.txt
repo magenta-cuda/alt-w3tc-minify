@@ -33,8 +33,12 @@ of JavaScript files for a template changes then this will also build a new
 compatible W3TC configuration file. N.B. - W3TC assumes that the ordered list
 of JavaScript files for a template is fixed. If your web pages are dynamically 
 computing the JavaScript files and two different web pages using the same
-template compute different lists of JavaScript files then W3TC cannot be used
-to minify those JavaScript files.
+template compute different lists of JavaScript files then W3TC cannot be used to
+minify those JavaScript files. N.B. - W3TC in manual minify mode only sees the
+template files in the theme directories. However, using the 'template_include'
+filter a plugin can force WordPress to load a template in the plugin's directory
+instead of a template in the theme's directory. W3TC in manual minify mode
+cannot be used minify the JavaScript files of templates in plugin directories.
  
 This generated JSON configuration file can be downloaded and further edited to
 fine tune the minify process and imported back into W3TC. The download link is
