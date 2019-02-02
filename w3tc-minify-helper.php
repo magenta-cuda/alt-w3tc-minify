@@ -125,6 +125,8 @@ EOD
                     $skipped[ self::$theme ][] = self::$basename;
                     update_option( self::OPTION_SKIPPED_NAME, $skipped );
                 }
+                // Uncomment the following to test templates loaded using the 'template_include' filter.
+                // self::$skip = FALSE;
             } else {
                 self::$skip = FALSE;
             }
