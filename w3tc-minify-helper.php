@@ -2,7 +2,7 @@
 /*
  * Plugin Name: W3TC Minify Helper
  * Description: record the sent order of the JavaScript files and use this to create a W3TC Minify configuration
- * Version: 1.0
+ * Version: 1.0.0.1
  * Plugin URI: http://magentacuda.com/an-alternate-way-to-set-w3tc-minify-file-order/
  * Author: Magenta Cuda
  * Author URI: http://magentacuda.com
