@@ -68,6 +68,12 @@
  *
  * The second command is useful in verifying that a view of a representative web
  * page has been done for each of your templates.
+ * 
+ * The following WP-CLI commands will clear the database data of this plugin:
+ * 
+ *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify");'
+ *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_log");'
+ * 
  */
 
 class MC_Alt_W3TC_Minify {
@@ -148,7 +154,8 @@ EOD
                 self::$files['include-footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
-                self::$files['include']['files'][] = $src;
+                # self::$files['include']['files'][] = $src;
+                self::$files['include-body']['files'][] = $src;
             }
             return $tag;
         }, 10, 3 );
