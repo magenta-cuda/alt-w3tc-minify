@@ -83,7 +83,9 @@ class MC_Alt_W3TC_Minify {
     const CONF_FILE_NAME      = 'mc_alt_w3tc_minify.json';
     const OPTION_LOG_NAME     = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME = 'mc_alt_w3tc_minify_skipped';
+    const OPTION_USE_INCLUDE  = 'mc_alt_w3tc_minify_use_include';
     const TRANSIENT_NAME      = 'mc_alt_w3tc_minify';
+    const AJAX_RESET          = 'mc_w3tc_minify_reset';
     private static $theme;
     private static $basename;
     private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -155,8 +157,18 @@ EOD
                 self::$files['include-footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
-                # self::$files['include']['files'][] = $src;
-                self::$files['include-body']['files'][] = $src;
+                if ( get_option( self::OPTION_USE_INCLUDE ) ) {
+                    # The problem with 'include' is the minified script file will be emitted immediately after
+                    # the <head> tag and the inline scripts created wp_localize_script() will be emitted much
+                    # later. However, WordPress normally emits the inline script created wp_localize_script()
+                    # immediately before the script being localized.
+                    self::$files['include']['files'][] = $src;
+                } else {
+                    # Using 'include-body' emits the minified script file after the <body> tag. Hence, the
+                    # inline scripts created by wp_localize_script() which will be emitted in the <head>
+                    # section will be emitted before the minified file.
+                    self::$files['include-body']['files'][] = $src;
+                }
             }
             return $tag;
         }, 10, 3 );
@@ -205,8 +217,8 @@ EOD
             # This AJAX request is sent to admin-ajax.php not as XHR but as a normal HTTP request
             # and will require special handling in the AJAX handler.
             array_push( $links,
-                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=mc_w3tc_minify_reset&_wpnonce='
-                    . wp_create_nonce( 'mc_w3tc_minify_reset' ) . '" title="Clear the database.">Reset</a>'
+                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
+                    . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the database.">Reset</a>'
             );
             return $links;
         } );
@@ -234,8 +246,8 @@ EOD
         # Let the user remove everything created by this plugin by AJAX request.
         # N.B. This AJAX request was not sent by XHR but as a normal HTTP request
         # and will require special handling as a page needs to be returned.
-        add_action( 'wp_ajax_mc_w3tc_minify_reset', function() {
-            check_ajax_referer( 'mc_w3tc_minify_reset' );
+        add_action( 'wp_ajax_' . self::AJAX_RESET, function() {
+            check_ajax_referer( self::AJAX_RESET );
             self::reset();
             self::add_notice( self::PLUGIN_NAME .': The database has been cleared.' );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
