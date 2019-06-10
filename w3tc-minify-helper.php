@@ -156,6 +156,23 @@ EOD
                     return $tag;
                 }
             }
+            error_log( 'FILTER::script_loader_tag():$tag=' . $tag );
+            $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
+            error_log( 'FILTER::script_loader_tag():$matches=' . print_r( $matches, TRUE ) );
+            foreach ( $matches as $index => $match ) {
+                if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
+                    $src_index = $index;
+                    error_log( 'FILTER::script_loader_tag():$src_index=' . $src_index );
+                } else {
+                    if ( empty( $src_index ) ) {
+                        $has_before_script = TRUE;
+                        error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
+                    } else {
+                        $has_after_script  = TRUE;
+                        error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
+                    }
+                }
+            }
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
                 self::$files['include-footer']['files'][] = $src;
             }
@@ -171,6 +188,13 @@ EOD
                     # inline scripts created by wp_localize_script() which will be emitted in the <head>
                     # section will be emitted before the minified file.
                     self::$files['include-body']['files'][] = $src;
+                }
+                if ( ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
+                    || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )  && ( $order = 'before' ) ) ) {
+                    self::add_notice( self::PLUGIN_NAME . <<<EOD
+: "$src" has a $position script which will be emitted $order itself.
+EOD
+                    );
                 }
             }
             return $tag;
