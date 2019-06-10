@@ -73,6 +73,7 @@
  * 
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_log");'
+ *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_skipped");'
  * 
  */
 
@@ -200,6 +201,13 @@ EOD
                         . '">Download New W3TC Conf File</a>'
                 );
             }
+            # Let the user remove everything created by this plugin by AJAX request.
+            # This AJAX request is sent to admin-ajax.php not as XHR but as a normal HTTP request
+            # and will require special handling in the AJAX handler.
+            array_push( $links,
+                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=mc_w3tc_minify_reset&_wpnonce='
+                    . wp_create_nonce( 'mc_w3tc_minify_reset' ) . '" title="Clear the database.">Reset</a>'
+            );
             return $links;
         } );
         # If the minify JavaScript configuration has changed display an admin notice.
@@ -223,14 +231,30 @@ EOD
             } );
             delete_transient( self::TRANSIENT_NAME );
         }
+        # Let the user remove everything created by this plugin by AJAX request.
+        # N.B. This AJAX request was not sent by XHR but as a normal HTTP request
+        # and will require special handling as a page needs to be returned.
+        add_action( 'wp_ajax_mc_w3tc_minify_reset', function() {
+            check_ajax_referer( 'mc_w3tc_minify_reset' );
+            self::reset();
+            self::add_notice( self::PLUGIN_NAME .': The database has been cleared.' );
+            # Since this AJAX request was not invoked as XHR but as a normal HTTP request
+            # we need to redirect otherwise the browser will not have content.
+            wp_redirect( admin_url( 'plugins.php' ) );
+            exit();
+        } );
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
-            delete_transient( self::TRANSIENT_NAME );
-            delete_option( self::OPTION_NAME );
-            delete_option( self::OPTION_LOG_NAME );
-            delete_option( self::OPTION_SKIPPED_NAME );
-            @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
+            self::reset();
         } );
+    }
+    # reset() will remove everything created by this plugin.
+    private static function reset() {
+        delete_transient( self::TRANSIENT_NAME );
+        delete_option( self::OPTION_NAME );
+        delete_option( self::OPTION_LOG_NAME );
+        delete_option( self::OPTION_SKIPPED_NAME );
+        @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
     }
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
