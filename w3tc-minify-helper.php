@@ -88,7 +88,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_RESET          = 'mc_w3tc_minify_reset';
     private static $theme;
     private static $basename;
-    private static $files = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
+    private static $files         = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
@@ -96,19 +96,22 @@ class MC_Alt_W3TC_Minify {
     private static $files_to_skip = [
         "/wp-includes/js/admin-bar.js"
     ];
-    private static $skip = TRUE;
+    private static $skip          = TRUE;
+    # $use_include sets whether to use 'include' or 'include-body' for header scripts
+    private static $use_include   = FALSE;
     public static function init() {
         # Get additional files to skip.
-        $files_to_skip = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
-        $files_to_skip = $files_to_skip === FALSE ? [] : $files_to_skip;
-        $files_to_skip = array_filter( $files_to_skip, function( $line ) {
+        $files_to_skip        = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
+        $files_to_skip        = $files_to_skip === FALSE ? [] : $files_to_skip;
+        $files_to_skip        = array_filter( $files_to_skip, function( $line ) {
             return $line[0] !== '#';
         } );
-        $files_to_skip = array_map( function( $file ) {
+        $files_to_skip        = array_map( function( $file ) {
             return trim( $file );
         }, $files_to_skip );
-        self::$files_to_skip = array_merge( self::$files_to_skip, $files_to_skip );
-        $initial_template = NULL;
+        self::$files_to_skip  = array_merge( self::$files_to_skip, $files_to_skip );
+        self::$use_include    = get_option( self::OPTION_USE_INCLUDE );
+        $initial_template     = NULL;
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
             $initial_template = $template;
             return $template;
@@ -157,7 +160,7 @@ EOD
                 self::$files['include-footer']['files'][] = $src;
             }
             if ( doing_action( 'wp_head' ) ) {
-                if ( get_option( self::OPTION_USE_INCLUDE ) ) {
+                if ( self::$use_include ) {
                     # The problem with 'include' is the minified script file will be emitted immediately after
                     # the <head> tag and the inline scripts created wp_localize_script() will be emitted much
                     # later. However, WordPress normally emits the inline script created wp_localize_script()
