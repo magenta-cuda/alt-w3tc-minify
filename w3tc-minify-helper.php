@@ -87,7 +87,8 @@ class MC_Alt_W3TC_Minify {
     const OPTION_THEME_MAP    = 'mc_alt_w3tc_minify_theme_map';
     const OPTION_USE_INCLUDE  = 'mc_alt_w3tc_minify_use_include';
     const TRANSIENT_NAME      = 'mc_alt_w3tc_minify';
-    const AJAX_RESET          = 'mc_w3tc_minify_reset';
+    const AJAX_RESET          = 'mc_alt_w3tc_minify_reset';
+    const AJAX_GET_THEME_MAP  = 'mc_alt_w3tc_minify_get_theme_map';
     private static $theme;
     private static $basename;
     private static $files         = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -301,6 +302,19 @@ EOD
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
             # we need to redirect to return a page otherwise the browser will not have content.
             wp_redirect( admin_url( 'plugins.php' ) );
+            exit();
+        } );
+        # a quick hack to dump the theme map abusing wordpress AJAX
+        add_action( 'wp_ajax_' . self::AJAX_GET_THEME_MAP, function() {
+?>
+<html>
+<body><pre>
+<?php
+    print_r( get_option( self::OPTION_THEME_MAP, [] ) );
+?>
+</pre></body>
+</html>
+<?php
             exit();
         } );
         # On deactivation remove everything created by this plugin. 
