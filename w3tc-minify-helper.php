@@ -156,6 +156,10 @@ EOD
                     return $tag;
                 }
             }
+            if ( wp_scripts()->get_data( $handle, 'data' ) ) {
+                $has_localize_script = TRUE;
+                error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
+            }
             error_log( 'FILTER::script_loader_tag():$tag=' . $tag );
             $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
             error_log( 'FILTER::script_loader_tag():$matches=' . print_r( $matches, TRUE ) );
@@ -189,7 +193,8 @@ EOD
                     # section will be emitted before the minified file.
                     self::$files['include-body']['files'][] = $src;
                 }
-                if ( ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
+                if ( ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' ) && ( $order = 'after' ) )
+                    || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
                     || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )  && ( $order = 'before' ) ) ) {
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
 : "$src" has a $position script which will be emitted $order itself.
