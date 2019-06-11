@@ -130,7 +130,7 @@ class MC_Alt_W3TC_Minify {
                 if ( ! in_array( self::$basename, $skipped[ self::$theme ] ) ) {
                     self::add_log_entry( "Skipped because it is an override of $initial_template." );
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
-: Template "$template" cannot be minified because it was included using the filter 'template_include'
+: WARNING: Template "$template" cannot be minified because it was included using the filter 'template_include'
 to override the template "$initial_template". W3TC cannot handle templates included using the filter 'template_include'.
 EOD
                     );
@@ -156,31 +156,32 @@ EOD
                     return $tag;
                 }
             }
-            if ( wp_scripts()->get_data( $handle, 'data' ) ) {
-                $has_localize_script = TRUE;
-                error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
-            }
-            error_log( 'FILTER::script_loader_tag():$tag=' . $tag );
-            $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
-            error_log( 'FILTER::script_loader_tag():$matches=' . print_r( $matches, TRUE ) );
-            foreach ( $matches as $index => $match ) {
-                if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
-                    $src_index = $index;
-                    error_log( 'FILTER::script_loader_tag():$src_index=' . $src_index );
-                } else {
-                    if ( empty( $src_index ) ) {
-                        $has_before_script = TRUE;
-                        error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
-                    } else {
-                        $has_after_script  = TRUE;
-                        error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
-                    }
-                }
-            }
             if ( doing_action( 'wp_print_footer_scripts' ) ) {
                 self::$files['include-footer']['files'][] = $src;
-            }
-            if ( doing_action( 'wp_head' ) ) {
+            } else if ( doing_action( 'wp_head' ) ) {
+                # check if there is a localize script for this script.
+                if ( wp_scripts()->get_data( $handle, 'data' ) ) {
+                    $has_localize_script = TRUE;
+                    error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
+                }
+                # check if there is a translation, before or after script for this script.
+                error_log( 'FILTER::script_loader_tag():$tag=' . $tag );
+                $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
+                error_log( 'FILTER::script_loader_tag():$matches=' . print_r( $matches, TRUE ) );
+                foreach ( $matches as $index => $match ) {
+                    if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
+                        $src_index = $index;
+                        error_log( 'FILTER::script_loader_tag():$src_index=' . $src_index );
+                    } else {
+                        if ( empty( $src_index ) ) {
+                            $has_before_script = TRUE;
+                            error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
+                        } else {
+                            $has_after_script  = TRUE;
+                            error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
+                        }
+                    }
+                }
                 if ( self::$use_include ) {
                     # The problem with 'include' is the minified script file will be emitted immediately after
                     # the <head> tag and the inline scripts created wp_localize_script() will be emitted much
@@ -193,11 +194,14 @@ EOD
                     # section will be emitted before the minified file.
                     self::$files['include-body']['files'][] = $src;
                 }
+                # Localize, translation and before scripts should be emitted before their corresponding script.
+                # After scripts should be emitted after their corresponding script. If this order is not 
+                # preserved issue a warning.
                 if ( ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' ) && ( $order = 'after' ) )
                     || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
                     || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )  && ( $order = 'before' ) ) ) {
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
-: "$src" has a $position script which will be emitted $order itself.
+: WARNING: "$src" has a $position script which will be emitted $order itself.
 EOD
                     );
                 }
