@@ -64,6 +64,7 @@
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_skipped"));'
+ *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_theme_map"));'
  *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
  *
  * The second command is useful in verifying that a view of a representative web
@@ -83,6 +84,7 @@ class MC_Alt_W3TC_Minify {
     const CONF_FILE_NAME      = 'mc_alt_w3tc_minify.json';
     const OPTION_LOG_NAME     = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME = 'mc_alt_w3tc_minify_skipped';
+    const OPTION_THEME_MAP    = 'mc_alt_w3tc_minify_theme_map';
     const OPTION_USE_INCLUDE  = 'mc_alt_w3tc_minify_use_include';
     const TRANSIENT_NAME      = 'mc_alt_w3tc_minify';
     const AJAX_RESET          = 'mc_w3tc_minify_reset';
@@ -118,9 +120,19 @@ class MC_Alt_W3TC_Minify {
         }, 0, 1 );
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
             # Get the current theme and template.
-            # $theme is a MD5 hash of the theme path, template and stylesheet. 
-            self::$theme    = \W3TC\Util_Theme::get_theme_key( get_theme_root(), get_template(), get_stylesheet() );
-            self::$basename = basename( $template, '.php' );
+            # $theme is a MD5 hash of the theme path, the template and the stylesheet. 
+            self::$theme               = \W3TC\Util_Theme::get_theme_key( $map_theme_root = get_theme_root(), 
+                                                                          $map_template   = get_template(),
+                                                                          $map_stylesheet = get_stylesheet() );
+            # Save the binding of the theme's MD5 hash to the theme path, the template and the stylesheet in the database. 
+            $theme_map                 = get_option( self::OPTION_THEME_MAP, [] );
+            $theme_map[ self::$theme ] = [
+                'theme_root' => $map_theme_root,
+                'template'   => $map_template,
+                'stylesheet' => $map_stylesheet
+            ];
+            update_option( self::OPTION_THEME_MAP, $theme_map );
+            self::$basename            = basename( $template, '.php' );
             # W3TC cannot handle templates included using the filter 'template_include' so log it and send an error notice.
             if ( $template !== $initial_template ) {
                 $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
@@ -251,7 +263,7 @@ EOD
             }
             # Let the user remove everything created by this plugin by AJAX request.
             # This AJAX request is sent to admin-ajax.php not as XHR but as a normal HTTP request
-            # and will require special handling in the AJAX handler.
+            # and will require special handling in the AJAX handler to return a HTML page.
             array_push( $links,
                 '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
                     . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the database.">Reset</a>'
@@ -287,7 +299,7 @@ EOD
             self::reset();
             self::add_notice( self::PLUGIN_NAME .': The database has been cleared.' );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
-            # we need to redirect otherwise the browser will not have content.
+            # we need to redirect to return a page otherwise the browser will not have content.
             wp_redirect( admin_url( 'plugins.php' ) );
             exit();
         } );
