@@ -79,16 +79,17 @@
  */
 
 class MC_Alt_W3TC_Minify {
-    const PLUGIN_NAME         = 'W3TC Minify Helper';
-    const OPTION_NAME         = 'mc_alt_w3tc_minify';
-    const CONF_FILE_NAME      = 'mc_alt_w3tc_minify.json';
-    const OPTION_LOG_NAME     = 'mc_alt_w3tc_minify_log';
-    const OPTION_SKIPPED_NAME = 'mc_alt_w3tc_minify_skipped';
-    const OPTION_THEME_MAP    = 'mc_alt_w3tc_minify_theme_map';
-    const OPTION_USE_INCLUDE  = 'mc_alt_w3tc_minify_use_include';
-    const TRANSIENT_NAME      = 'mc_alt_w3tc_minify';
-    const AJAX_RESET          = 'mc_alt_w3tc_minify_reset';
-    const AJAX_GET_THEME_MAP  = 'mc_alt_w3tc_minify_get_theme_map';
+    const PLUGIN_NAME            = 'W3TC Minify Helper';
+    const OPTION_NAME            = 'mc_alt_w3tc_minify';
+    const CONF_FILE_NAME         = 'mc_alt_w3tc_minify.json';
+    const OPTION_LOG_NAME        = 'mc_alt_w3tc_minify_log';
+    const OPTION_SKIPPED_NAME    = 'mc_alt_w3tc_minify_skipped';
+    const OPTION_THEME_MAP       = 'mc_alt_w3tc_minify_theme_map';
+    const OPTION_USE_INCLUDE     = 'mc_alt_w3tc_minify_use_include';
+    const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
+    const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
+    const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
+    const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
     private static $theme;
     private static $basename;
     private static $files         = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -136,20 +137,7 @@ class MC_Alt_W3TC_Minify {
             self::$basename            = basename( $template, '.php' );
             # W3TC cannot handle templates included using the filter 'template_include' so log it and send an error notice.
             if ( $template !== $initial_template ) {
-                $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
-                if ( ! array_key_exists( self::$theme, $skipped ) ) {
-                    $skipped[ self::$theme ] = [];
-                }
-                if ( ! in_array( self::$basename, $skipped[ self::$theme ] ) ) {
-                    self::add_log_entry( "Skipped because it is an override of $initial_template." );
-                    self::add_notice( self::PLUGIN_NAME . <<<EOD
-: WARNING: Template "$template" cannot be minified because it was included using the filter 'template_include'
-to override the template "$initial_template". W3TC cannot handle templates included using the filter 'template_include'.
-EOD
-                    );
-                    $skipped[ self::$theme ][] = self::$basename;
-                    update_option( self::OPTION_SKIPPED_NAME, $skipped );
-                }
+                self::set_database_to_skip_current_template();
                 // Uncomment the following to test templates loaded using the 'template_include' filter.
                 // self::$skip = FALSE;
             } else {
@@ -213,8 +201,10 @@ EOD
                 if ( ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' ) && ( $order = 'after' ) )
                     || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
                     || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )  && ( $order = 'before' ) ) ) {
+                    $theme    = self::$theme;
+                    $basename = self::$basename;
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
-: WARNING: "$src" has a $position script which will be emitted $order itself.
+: WARNING: In template "$theme.$basename" the script "$src" has a $position script which will be emitted $order itself.
 EOD
                     );
                 }
@@ -248,8 +238,12 @@ EOD
                 # Update the history of changes to the ordered list of Javascript files for themes and templates.
                 self::add_log_entry( 'Updated.' );
                 # Create or update the transient notices. 
-                self::add_notice( self::PLUGIN_NAME .': The ordered list of JavaScript files for the theme: "' . self::$theme
-                                      . '" and the template: "' . self::$basename . '" has been updated.' );
+                self::add_notice( self::PLUGIN_NAME
+                                     . ': The ordered list of JavaScript files for the theme: "'
+                                     . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
+                                     .     self::AJAX_GET_THEME_MAP . '" target="blank">' . self::$theme 
+                                     . '</a>'
+                                     . '" and the template: "' . self::$basename . '" has been updated.' );
             }
         } );
     }
@@ -283,7 +277,7 @@ EOD
                     return $or | strpos( $notice, 'updated' ) !== FALSE;
                 }, FALSE ) ) {
 ?>
-    <br>The new configuration file can be downloaded from <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
+    <br><?php echo self::PLUGIN_NAME; ?>: The new configuration file can be downloaded from <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
 <?php
                 }
 ?>
@@ -317,6 +311,33 @@ EOD
 <?php
             exit();
         } );
+        add_action( 'wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP, function() {
+            check_ajax_referer( self::AJAX_SET_TEMPLATE_SKIP );
+            if ( ! empty( $_REQUEST['skip'] ) ) {
+                # Restore the minify helper environment of the referring page.
+                set_current_template( $_REQUEST['theme'], $_REQUEST['basename'] );
+                set_database_to_skip_current_template();
+                self::add_notice( self::PLUGIN_NAME
+                    . ": The template \"{$_REQUEST['theme']}.{$_REQUEST['basename']}\" will be skipped." );
+            } else {
+                self::add_notice( self::PLUGIN_NAME
+                    . ": The template \"{$_REQUEST['theme']}.{$_REQUEST['basename']}\" will be minified." );
+            }
+            # Remove the corresponding transient notice. 
+            $notices = get_transient( self::TRANSIENT_NAME );
+            foreach ( $notices as $i => $notice ) {
+                if ( strpos( $notice, $_REQUEST['notice_id'] ) !== FALSE ) {
+                    unset( $notices[ $i ] );
+                    break;
+                }
+            }
+            delete_transient( self::TRANSIENT_NAME );
+            if ( $notices ) {
+                set_transient( self::TRANSIENT_NAME, $notices );
+            }
+            wp_redirect( $_SERVER['HTTP_REFERER'] );
+            exit();
+        } );
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
             self::reset();
@@ -328,6 +349,7 @@ EOD
         delete_option( self::OPTION_NAME );
         delete_option( self::OPTION_LOG_NAME );
         delete_option( self::OPTION_SKIPPED_NAME );
+        delete_option( self::OPTION_THEME_MAP );
         @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
     }
     private static function update_config_file( $new_data ) {
@@ -350,6 +372,27 @@ EOD
             $config = json_encode( $config );
         }
         \W3TC\Util_File::file_put_contents_atomic( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME, $config );
+    }
+    private static function set_database_to_skip_current_template() {
+        $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
+        if ( ! array_key_exists( self::$theme, $skipped ) ) {
+            $skipped[ self::$theme ] = [];
+        }
+        if ( ! in_array( self::$basename, $skipped[ self::$theme ] ) ) {
+            self::add_log_entry( "Skipped because it is an override of $initial_template." );
+            self::add_notice( self::PLUGIN_NAME . <<<EOD
+: WARNING: Template "$template" cannot be minified because it was included using the filter 'template_include'
+to override the template "$initial_template". W3TC cannot handle templates included using the filter 'template_include'.
+EOD
+            );
+            $skipped[ self::$theme ][] = self::$basename;
+            update_option( self::OPTION_SKIPPED_NAME, $skipped );
+        }
+    }
+    # In a non-frontend environment (AJAX) the current template must be manually set.
+    private static function set_current_template( $theme, $basename ) {
+        self::$theme    = $theme;
+        self::$basename = $basename;
     }
     private static function add_log_entry( $entry ) {
         $log = get_option( self::OPTION_LOG_NAME, [] );
