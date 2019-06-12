@@ -87,10 +87,11 @@ class MC_Alt_W3TC_Minify {
     const OPTION_THEME_MAP       = 'mc_alt_w3tc_minify_theme_map';
     const OPTION_USE_INCLUDE     = 'mc_alt_w3tc_minify_use_include';
     const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
-    const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
-    const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
-    const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
     const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
+    const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
+    const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
+    const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
+    const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
     private static $theme;
     private static $basename;
     private static $files         = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
@@ -246,19 +247,26 @@ EOD
             $datum =& $data[ self::$theme ][ self::$basename ];
             if ( self::$files !== $datum ) {
                 # Update the array item for the current theme and template.
-                $datum = self::$files;
+                if ( ! empty( self::$files ) ) {
+                    $datum = self::$files;
+                } else {
+                    unset( $data[ self::$theme ][ self::$basename ] );
+                    if ( empty( $data[ self::$theme ] ) ) {
+                        unset( $data[ self::$theme ] );
+                    }
+                }
                 # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
                 # The minify JavaScript configuration has changed so save the new configuration into the database
                 # and generate a new W3TC configuration file.
                 update_option( self::OPTION_NAME, $data );
                 self::update_config_file( $data );
                 # Update the history of changes to the ordered list of Javascript files for themes and templates.
-                self::add_log_entry( 'Updated.' );
+                self::add_log_entry( ! empty( self::$files ) ? 'Updated.' : 'Removed.' );
                 # Create or update the transient notices. 
                 self::add_notice( self::PLUGIN_NAME
                                      . ': The ordered list of JavaScript files for the theme: "'
                                      . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
-                                     .     self::AJAX_GET_THEME_MAP . '" target="blank">' . self::$theme 
+                                     .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme 
                                      . '</a>'
                                      . '" and the template: "' . self::$basename . '" has been updated.' );
             }
@@ -279,6 +287,10 @@ EOD
             array_push( $links,
                 '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
                     . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the database.">Reset</a>'
+            );
+            array_push( $links,
+                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_LOG
+                    . '" title="Dump actions on templates in themes." target="_blank">Dump Log</a>'
             );
             return $links;
         } );
@@ -322,19 +334,6 @@ EOD
             wp_redirect( admin_url( 'plugins.php' ) );
             exit();
         } );
-        # a quick hack to dump the theme map abusing wordpress AJAX
-        add_action( 'wp_ajax_' . self::AJAX_GET_THEME_MAP, function() {
-?>
-<html>
-<body><pre>
-<?php
-    print_r( get_option( self::OPTION_THEME_MAP, [] ) );
-?>
-</pre></body>
-</html>
-<?php
-            exit();
-        } );
         add_action( 'wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP, function() {
             error_log( 'ACTION::wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP . '():$_REQUEST=' . print_r( $_REQUEST, true ) );
             check_ajax_referer( self::AJAX_SET_TEMPLATE_SKIP );
@@ -363,6 +362,32 @@ EOD
                 set_transient( self::TRANSIENT_NAME, $notices );
             }
             wp_redirect( $_SERVER['HTTP_REFERER'] );
+            exit();
+        } );
+        # a quick hack to dump the theme map abusing wordpress AJAX
+        add_action( 'wp_ajax_' . self::AJAX_GET_THEME_MAP, function() {
+?>
+<html>
+<body><pre>
+<?php
+    print_r( get_option( self::OPTION_THEME_MAP, [] ) );
+?>
+</pre></body>
+</html>
+<?php
+            exit();
+        } );
+        # a quick hack to dump the log abusing wordpress AJAX
+        add_action( 'wp_ajax_' . self::AJAX_GET_LOG, function() {
+?>
+<html>
+<body><pre>
+<?php
+    print_r( get_option( self::OPTION_LOG_NAME, [] ) );
+?>
+</pre></body>
+</html>
+<?php
             exit();
         } );
         # On deactivation remove everything created by this plugin. 
@@ -426,7 +451,10 @@ EOD
         if ( ! array_key_exists( self::$theme, $log ) ) {
             $log[ self::$theme ] = [];
         }
-        $log[ self::$theme ][ self::$basename ] = current_time( 'mysql' ) . ": $entry ";
+        if ( ! array_key_exists( self::$basename, $log[ self::$theme ] ) ) {
+            $log[ self::$theme ][ self::$basename ] = [];
+        }
+        $log[ self::$theme ][ self::$basename ][] = current_time( 'mysql' ) . ": $entry ";
         update_option( self::OPTION_LOG_NAME, $log );
     }
     private static function add_notice( $notice ) {
