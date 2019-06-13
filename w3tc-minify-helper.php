@@ -89,13 +89,15 @@ class MC_Alt_W3TC_Minify {
     const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
     const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
     const DO_NOT_MINIFY          = 'DO NOT MINIFY';
+    const OVERRIDE_DO_NOT_MINIFY = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
     const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
     const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
     const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
     const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
-    private static $theme;
-    private static $basename;
-    private static $files         = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
+    private static $theme        = NULL;   # MD5 of the current theme
+    private static $basename     = NULL;   # the basename of the current template in the current theme
+    private static $the_data     = NULL;   # the database of this plugin
+    private static $files        = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
@@ -103,6 +105,7 @@ class MC_Alt_W3TC_Minify {
     private static $files_to_skip = [
         "/wp-includes/js/admin-bar.js"
     ];
+    # By default processing is skipped. The filter 'template_include' will conditionally enable processing.
     private static $skip          = TRUE;
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
     private static $use_include   = FALSE;
@@ -119,13 +122,16 @@ class MC_Alt_W3TC_Minify {
         self::$files_to_skip  = array_merge( self::$files_to_skip, $files_to_skip );
         self::$use_include    = get_option( self::OPTION_USE_INCLUDE );
         $initial_template     = NULL;
+        # Save the initial template so we can detect if the filter 'template_include' was used to change the template.
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
             $initial_template = $template;
             return $template;
         }, 0, 1 );
+        # The filter 'template_include' has important side effects.
+        # It is used to set the current theme - self::$theme - and the current template - self::$basename.
+        # It conditionally enables processing by setting self::$skip = FALSE which is by default set to TRUE.
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
-            # Get the current theme and template.
-            # $theme is a MD5 hash of the theme path, the template and the stylesheet. 
+            # self::$theme is a MD5 hash of the theme path, the template and the stylesheet. 
             self::$theme               = \W3TC\Util_Theme::get_theme_key( $map_theme_root = get_theme_root(), 
                                                                           $map_template   = get_template(),
                                                                           $map_stylesheet = get_stylesheet() );
@@ -137,12 +143,16 @@ class MC_Alt_W3TC_Minify {
                 'stylesheet' => $map_stylesheet
             ];
             update_option( self::OPTION_THEME_MAP, $theme_map );
-            self::$basename            = basename( $template, '.php' );
-            # Check if 'do not minify' has been set for this template.
-            $data = get_option( self::OPTION_NAME, [] );
-            if ( array_key_exists( self::$theme, $data ) && array_key_exists( self::$basename, $data[ self::$theme ] ) ) {
-                if ( $data[ self::$theme ][ self::$basename ] === self::DO_NOT_MINIFY ) {
-                    return $template;
+            self::$basename = basename( $template, '.php' );
+            # If query parameter self::OVERRIDE_DO_NOT_MINIFY exists ignore the skip by 'do not minify' flag for the current template.
+            if ( empty( $_REQUEST[ self::OVERRIDE_DO_NOT_MINIFY ] ) ) {
+                # Check if 'do not minify' has been set for this template.
+                $data = self::get_the_data();
+                if ( array_key_exists( self::$theme, $data ) && array_key_exists( self::$basename, $data[ self::$theme ] ) ) {
+                    if ( $data[ self::$theme ][ self::$basename ] === self::DO_NOT_MINIFY ) {
+                        # self::$skip === TRUE so processing will be skipped.
+                        return $template;
+                    }
                 }
             }
             # W3TC cannot handle templates included using the filter 'template_include' so log it and send an error notice.
@@ -152,11 +162,13 @@ class MC_Alt_W3TC_Minify {
 to override the template "$initial_template". W3TC cannot handle templates included using the filter 'template_include'.
 EOD
                 );
+                # self::$skip === TRUE so processing will be skipped.
                 // Uncomment the following to test templates loaded using the 'template_include' filter.
                 // self::$skip = FALSE;
-            } else {
-                self::$skip = FALSE;
+                return $template;
             }
+            # If we get here then enable processing.
+            self::$skip = FALSE;
             return $template;
         }, PHP_INT_MAX, 1 );
         # When each JavaScript file is sent by the server add an entry to the ordered list of JavaScript files for
@@ -250,6 +262,8 @@ EOD
         } );
     }
     public static function admin_init() {
+        # This plugin doesn't require much user interactivity so it doesn't have a GUI.
+        # Rather some non standard plugin action links are provided.
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
             if ( file_exists( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME ) ) {
                 # Add the download link for the generated conf file after the "Deactivate" link.
@@ -265,6 +279,7 @@ EOD
                 '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
                     . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the database.">Reset</a>'
             );
+            # Another abusive use of AJAX (sent as a normal HTTP request not as XHR) to dump the log in a web page.
             array_push( $links,
                 '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_LOG
                     . '" title="Dump actions on templates in themes." target="_blank">Dump Log</a>'
@@ -394,6 +409,12 @@ EOD
         delete_option( self::OPTION_THEME_MAP );
         @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
     }
+    private static function get_the_data() {
+        if ( self::$the_data === NULL ) {
+            self::$the_data = get_option( self::OPTION_NAME, [] );
+        }
+        return self::$the_data;
+    }
     # Update the ordered list of Javascript files for the current theme and template if it is
     # different from its previous value and rebuild the W3TC configuration file if neccessary.
     private static function update_database() {
@@ -401,13 +422,14 @@ EOD
         # The array values are arrays of JavaScript file names.
         # Deleting this option will force a rebuild of W3TC configuration file.
         # However, this will require again viewing a web page for all templates.
-        $data = get_option( self::OPTION_NAME, [] );
+        $data = self::get_the_data();
         if ( ! array_key_exists( self::$theme, $data ) ) {
             $data[ self::$theme ] = [];
         }
         # Check if the ordered JavaScript file list has changed for the current theme and template.
         $datum =& $data[ self::$theme ][ self::$basename ];
-        if ( $datum !== self::DO_NOT_MINIFY && self::$files !== $datum ) {
+        if ( ( ! empty( $_REQUEST[ self::OVERRIDE_DO_NOT_MINIFY ] ) || $datum !== self::DO_NOT_MINIFY )
+            && self::$files !== $datum ) {
             # Update the array item for the current theme and template.
             if ( self::$files !== self::DO_NOT_MINIFY ) {
                 $datum = self::$files;
@@ -420,9 +442,9 @@ EOD
                 $datum = self::$files;
             }
             # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
-            # The minify JavaScript configuration has changed so save the new configuration into the database
-            # and generate a new W3TC configuration file.
+            # The minify JavaScript configuration has changed so save the new configuration into the database.
             update_option( self::OPTION_NAME, $data );
+            # Then generate a new W3TC configuration file using the new data.
             self::update_config_file( $data );
             # Update the history of changes to the ordered list of Javascript files for themes and templates.
             self::add_log_entry( ! empty( self::$files ) ? 'Updated.' : 'Removed.' );
