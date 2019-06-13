@@ -169,23 +169,23 @@ EOD
                 # check if there is a localize script for this script.
                 if ( wp_scripts()->get_data( $handle, 'data' ) ) {
                     $has_localize_script = TRUE;
-                    error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
+                    # error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
                 }
                 # check if there is a translation, before or after script for this script.
-                error_log( 'FILTER::script_loader_tag():$tag=' . $tag );
+                # error_log( 'FILTER::script_loader_tag(): $tag=' . $tag );
                 $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
-                error_log( 'FILTER::script_loader_tag():$matches=' . print_r( $matches, TRUE ) );
+                # error_log( 'FILTER::script_loader_tag(): $matches=' . print_r( $matches, TRUE ) );
                 foreach ( $matches as $index => $match ) {
                     if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
                         $src_index = $index;
-                        error_log( 'FILTER::script_loader_tag():$src_index=' . $src_index );
+                        # error_log( 'FILTER::script_loader_tag(): $src_index=' . $src_index );
                     } else {
                         if ( empty( $src_index ) ) {
                             $has_before_script = TRUE;
-                            error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
+                            # error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
                         } else {
                             $has_after_script  = TRUE;
-                            error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
+                            # error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
                         }
                     }
                 }
@@ -204,9 +204,13 @@ EOD
                 # Localize, translation and before scripts should be emitted before their corresponding script.
                 # After scripts should be emitted after their corresponding script. If this order is not 
                 # preserved issue a warning.
-                if ( ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' ) && ( $order = 'after' ) )
-                    || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' ) && ( $order = 'after' ) )
-                    || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )  && ( $order = 'before' ) ) ) {
+                if (   ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' )
+                            && ( $order = 'after' ) )
+                    || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' )
+                            && ( $order = 'after' ) )
+                    || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )
+                            && ( $order = 'before' ) )
+                ) {
                     $theme     = self::$theme;
                     $basename  = self::$basename;
                     $notice_id = md5( $theme . $basename . $src . $position . $order );
@@ -216,7 +220,7 @@ EOD
                                         . '&basename='                . self::$basename
                                         . '&' . self::NOTICE_ID . '=' . $notice_id
                                         . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
-                    error_log( 'FILTER::script_loader_tag():$ajax_url=' . $ajax_url );
+                    # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
 : WARNING: In template "$theme.$basename" the script "$src" has a $position script which will be emitted $order itself.
 An action is required to resolve this. Either
@@ -280,7 +284,8 @@ EOD
                     return $or | strpos( $notice, 'updated' ) !== FALSE;
                 }, FALSE ) ) {
 ?>
-    <br><?php echo self::PLUGIN_NAME; ?>: The new configuration file can be downloaded from <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
+    <br><?php echo self::PLUGIN_NAME; ?>: The new configuration file can be downloaded from
+        <a href="<?php echo $url; ?>"><?php echo $url; ?></a>.
 <?php
                 }
 ?>
@@ -309,7 +314,7 @@ EOD
             exit();
         } );
         add_action( 'wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP, function() {
-            error_log( 'ACTION::wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP . '():$_REQUEST=' . print_r( $_REQUEST, true ) );
+            # error_log( 'ACTION::wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP . '():$_REQUEST=' . print_r( $_REQUEST, true ) );
             check_ajax_referer( self::AJAX_SET_TEMPLATE_SKIP );
             if ( ! empty( $_REQUEST['skip'] ) ) {
                 # Restore the minify helper environment of the referring page.
