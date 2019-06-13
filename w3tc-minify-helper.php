@@ -230,45 +230,10 @@ EOD
             return $tag;
         }, 10, 3 );
         # On shutdown update the ordered list of Javascript files for the current theme and template if it is
-        # different from its previous value.
+        # different from its previous value and rebuild the W3TC configuration file if neccessary.
         add_action( 'shutdown', function() {
-            if ( self::$skip ) {
-                return;
-            }
-            # The option value is a two dimensional array indexed first by theme then by template.
-            # The array values are arrays of JavaScript file names.
-            # Deleting this option will force a rebuild of W3TC configuration file.
-            # However, this will require again viewing a web page for all templates.
-            $data = get_option( self::OPTION_NAME, [] );
-            if ( ! array_key_exists( self::$theme, $data ) ) {
-                $data[ self::$theme ] = [];
-            }
-            # Check if the ordered JavaScript file list has changed for the current theme and template.
-            $datum =& $data[ self::$theme ][ self::$basename ];
-            if ( self::$files !== $datum ) {
-                # Update the array item for the current theme and template.
-                if ( ! empty( self::$files ) ) {
-                    $datum = self::$files;
-                } else {
-                    unset( $data[ self::$theme ][ self::$basename ] );
-                    if ( empty( $data[ self::$theme ] ) ) {
-                        unset( $data[ self::$theme ] );
-                    }
-                }
-                # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
-                # The minify JavaScript configuration has changed so save the new configuration into the database
-                # and generate a new W3TC configuration file.
-                update_option( self::OPTION_NAME, $data );
-                self::update_config_file( $data );
-                # Update the history of changes to the ordered list of Javascript files for themes and templates.
-                self::add_log_entry( ! empty( self::$files ) ? 'Updated.' : 'Removed.' );
-                # Create or update the transient notices. 
-                self::add_notice( self::PLUGIN_NAME
-                                     . ': The ordered list of JavaScript files for the theme: "'
-                                     . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
-                                     .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme 
-                                     . '</a>'
-                                     . '" and the template: "' . self::$basename . '" has been updated.' );
+            if ( ! self::$skip ) {
+                self::update_database();            
             }
         } );
     }
@@ -296,6 +261,15 @@ EOD
         } );
         # If the minify JavaScript configuration has changed display an admin notice.
         if ( is_admin() && ! wp_doing_ajax() && ( $notices = get_transient( self::TRANSIENT_NAME ) ) ) {
+            # Some action notices may have expired nonces so renew those nonces.
+            $set_template_skip_nonce = wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+            $notices = array_map( function( $notice ) use ( $set_template_skip_nonce ) {
+                if ( strpos( $notice, 'action=' . self::AJAX_SET_TEMPLATE_SKIP . '&' ) !== FALSE ) {
+                    return preg_replace( '#&_wpnonce=[a-f0-9]+&#', "&_wpnonce={$set_template_skip_nonce}&", $notice );
+                } else {
+                    return $notice;
+                }
+            }, $notices );
             $url = WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME;
             add_action( 'admin_notices', function() use ( $notices, $url ) {
 ?>
@@ -344,6 +318,9 @@ EOD
                     "Skipped because a script has an out of order localize, translation, before or after script.",
                     ": The scripts of template \"{$_REQUEST['theme']}.{$_REQUEST['basename']}\" will not be minified."
                 );
+                # Update the database and rebuild the W3TC configuration file.
+                self::$files = FALSE;
+                self::update_database();
             } else {
                 self::add_notice( self::PLUGIN_NAME
                     . ": The scrips of template \"{$_REQUEST['theme']}.{$_REQUEST['basename']}\" will be minified." );
@@ -403,6 +380,45 @@ EOD
         delete_option( self::OPTION_SKIPPED_NAME );
         delete_option( self::OPTION_THEME_MAP );
         @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
+    }
+    # Update the ordered list of Javascript files for the current theme and template if it is
+    # different from its previous value and rebuild the W3TC configuration file if neccessary.
+    private static function update_database() {
+        # The option value is a two dimensional array indexed first by theme then by template.
+        # The array values are arrays of JavaScript file names.
+        # Deleting this option will force a rebuild of W3TC configuration file.
+        # However, this will require again viewing a web page for all templates.
+        $data = get_option( self::OPTION_NAME, [] );
+        if ( ! array_key_exists( self::$theme, $data ) ) {
+            $data[ self::$theme ] = [];
+        }
+        # Check if the ordered JavaScript file list has changed for the current theme and template.
+        $datum =& $data[ self::$theme ][ self::$basename ];
+        if ( self::$files !== $datum ) {
+            # Update the array item for the current theme and template.
+            if ( ! empty( self::$files ) ) {
+                $datum = self::$files;
+            } else {
+                unset( $data[ self::$theme ][ self::$basename ] );
+                if ( empty( $data[ self::$theme ] ) ) {
+                    unset( $data[ self::$theme ] );
+                }
+            }
+            # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
+            # The minify JavaScript configuration has changed so save the new configuration into the database
+            # and generate a new W3TC configuration file.
+            update_option( self::OPTION_NAME, $data );
+            self::update_config_file( $data );
+            # Update the history of changes to the ordered list of Javascript files for themes and templates.
+            self::add_log_entry( ! empty( self::$files ) ? 'Updated.' : 'Removed.' );
+            # Create or update the transient notices. 
+            self::add_notice( self::PLUGIN_NAME
+                                 . ': The ordered list of JavaScript files for the theme: "'
+                                 . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
+                                 .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme 
+                                 . '</a>'
+                                 . '" and the template: "' . self::$basename . '" has been updated.' );
+        }
     }
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
