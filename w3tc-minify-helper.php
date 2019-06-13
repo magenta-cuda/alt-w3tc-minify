@@ -138,6 +138,13 @@ class MC_Alt_W3TC_Minify {
             ];
             update_option( self::OPTION_THEME_MAP, $theme_map );
             self::$basename            = basename( $template, '.php' );
+            # Check if 'do not minify' has been set for this template.
+            $data = get_option( self::OPTION_NAME, [] );
+            if ( array_key_exists( self::$theme, $data ) && array_key_exists( self::$basename, $data[ self::$theme ] ) ) {
+                if ( $data[ self::$theme ][ self::$basename ] === self::DO_NOT_MINIFY ) {
+                    return $template;
+                }
+            }
             # W3TC cannot handle templates included using the filter 'template_include' so log it and send an error notice.
             if ( $template !== $initial_template ) {
                 self::set_database_to_skip_current_template( "Skipped because it is an override of $initial_template.", <<<EOD
