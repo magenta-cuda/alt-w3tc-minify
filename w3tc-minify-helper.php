@@ -88,6 +88,7 @@ class MC_Alt_W3TC_Minify {
     const OPTION_USE_INCLUDE     = 'mc_alt_w3tc_minify_use_include';
     const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
     const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
+    const DO_NOT_MINIFY          = 'DO NOT MINIFY';
     const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
     const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
     const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
@@ -324,7 +325,7 @@ EOD
                     ": The scripts of template \"{$_REQUEST['theme']}.{$_REQUEST['basename']}\" will not be minified."
                 );
                 # Update the database and rebuild the W3TC configuration file.
-                self::$files = FALSE;
+                self::$files = self::DO_NOT_MINIFY;
                 self::update_database();
             } else {
                 self::add_notice( self::PLUGIN_NAME
@@ -399,15 +400,17 @@ EOD
         }
         # Check if the ordered JavaScript file list has changed for the current theme and template.
         $datum =& $data[ self::$theme ][ self::$basename ];
-        if ( self::$files !== $datum ) {
+        if ( $datum !== self::DO_NOT_MINIFY && self::$files !== $datum ) {
             # Update the array item for the current theme and template.
-            if ( ! empty( self::$files ) ) {
+            if ( self::$files !== self::DO_NOT_MINIFY ) {
                 $datum = self::$files;
             } else {
-                unset( $data[ self::$theme ][ self::$basename ] );
-                if ( empty( $data[ self::$theme ] ) ) {
-                    unset( $data[ self::$theme ] );
-                }
+                # unset( $data[ self::$theme ][ self::$basename ] );
+                # if ( empty( $data[ self::$theme ] ) ) {
+                #     unset( $data[ self::$theme ] );
+                # }
+                # The above will not work as missing item will be interpreted as an uninitialized item.
+                $datum = self::$files;
             }
             # error_log( 'ACTION::shutdown():MC_Alt_W3TC_Minify::new $data=' . print_r( $data, TRUE ) );
             # The minify JavaScript configuration has changed so save the new configuration into the database
@@ -437,6 +440,15 @@ EOD
                 $config_minify_js_groups[ $theme ] = $data;
             }
         }
+        # Remove DO_NOT_MINIFY items from $config['minify.js.groups'] before saving new config file;
+        foreach ( $config_minify_js_groups as &$theme ) {
+            $theme = array_filter( $theme, function( $template ) {
+                return $template !== self::DO_NOT_MINIFY;
+            } );
+        }
+        $config_minify_js_groups = array_filter( $config_minify_js_groups, function( $theme ) {
+            return $theme;
+        } );
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():new $config=' . print_r( $config, TRUE ) );
         # Save the new configuration to a disk file which can be downloaded.
         if ( defined( 'JSON_PRETTY_PRINT' ) ) {
