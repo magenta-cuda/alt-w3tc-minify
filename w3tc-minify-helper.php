@@ -78,7 +78,8 @@
  * page has been done for each of your templates.
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
- * 
+ *
+ *     php wp-cli.phar eval 'delete_transient("mc_alt_w3tc_minify");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_log");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_skipped");'
@@ -178,8 +179,18 @@ EOD
             self::$skip = FALSE;
             return $template;
         }, PHP_INT_MAX, 1 );
-        # When each JavaScript file is sent by the server add an entry to the ordered list of JavaScript files for
-        # the current theme and template.
+        # When each HTML <script> tag for a JavaScript file is emitted add an entry to the ordered list of JavaScript
+        # files for the current theme and template. In addition to emitting the <script> tag WordPress may prepend
+        # 'localize','translation' and 'before' inline <script> elements and append an 'after' inline <script> element.
+        # WordPress may also bracket the above with a conditional HTML comment. In W3TC 'manual minify' mode the 
+        # 'additional' prepended, appended HTML elements will be emitted as usual but the <script> tag for the
+        # JavaScript file will not be emitted. Instead the contents of that file will be combined with other JavaScript
+        # files and that combined file will be emitted somewhere else. This can change the order of execution of the
+        # JavaScript code which can cause fatal errors. (I think this is a serious flaw in the design of W3TC 'manual
+        # minify' mode and alternate design can avoid this problem but currently I don't see how to incorporate it into
+        # the W3TC framework.) The best we can do for now is issue warnings if the relative order of a JavaScript file
+        # and its 'additional' inline <script> elements is changed and let the user choose not to minify the current
+        # template.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( self::$skip ) {
                 return $tag;
@@ -198,8 +209,14 @@ EOD
                     $has_localize_script = TRUE;
                     # error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
                 }
-                # check if there is a translation, before or after script for this script.
-                # error_log( 'FILTER::script_loader_tag(): $tag=' . $tag );
+                error_log( 'FILTER::script_loader_tag(): $tag=' . $tag );
+                # Check if a conditional HTML comment exists.
+                if ( preg_match( '#<!--(\[if\s.+\])>.+<!\[endif\]-->#s', $tag, $matches ) === 1 ) {
+                    error_log( 'FILTER::script_loader_tag(): $matches=' . print_r( $matches, TRUE ) );
+                    $has_conditional = TRUE;
+                    $condition       = $matches[1];
+                }
+                # Check if there is a 'translation', 'before' or 'after' script for this script.
                 $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
                 # error_log( 'FILTER::script_loader_tag(): $matches=' . print_r( $matches, TRUE ) );
                 foreach ( $matches as $index => $match ) {
@@ -227,6 +244,26 @@ EOD
                     # inline scripts created by wp_localize_script() which will be emitted in the <head>
                     # section will be emitted before the minified file.
                     self::$files['include-body']['files'][] = $src;
+                }
+                if ( ! empty( $has_conditional ) ) {
+                    $notice_id = md5( self::$theme . self::$basename . $src . $condition );
+                    $ajax_url  = admin_url( 'admin-ajax.php', 'relative' )
+                                        . '?action='                  . self::AJAX_SET_TEMPLATE_SKIP 
+                                        . '&theme='                   . self::$theme
+                                        . '&basename='                . self::$basename
+                                        . '&' . self::NOTICE_ID . '=' . $notice_id
+                                        . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+                    # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
+                    $theme     = self::$theme;
+                    $basename  = self::$basename;
+                    self::add_notice( self::PLUGIN_NAME . <<<EOD
+: WARNING: In template "$theme.$basename" the script "$src" has a HTML conditional comment - "$condition".
+An action is required to resolve this. Either
+<a href="{$ajax_url}&skip=1">Do not minify this template.</a>
+or
+<a href="{$ajax_url}&skip=0">Safe to minify this template.</a>
+EOD
+                    );
                 }
                 # Localize, translation and before scripts should be emitted before their corresponding script.
                 # After scripts should be emitted after their corresponding script. If this order is not 
