@@ -2,7 +2,7 @@
 /*
  * Plugin Name: W3TC Minify Helper
  * Description: record the sent order of the JavaScript files and use this to create a W3TC Minify configuration
- * Version: 1.0.0.1
+ * Version: 1.1
  * Plugin URI: http://magentacuda.com/an-alternate-way-to-set-w3tc-minify-file-order/
  * Author: Magenta Cuda
  * Author URI: http://magentacuda.com
@@ -44,6 +44,13 @@
  * computing the JavaScript files and two different web pages using the same
  * template compute different lists of JavaScript files then W3TC cannot be used
  * to minify those JavaScript files.
+ * 
+ * If in response to a warning you select the 'do not minify' option for a template
+ * then this plugin will permanently ignore that template. However, you can force
+ * this plugin to re-process that template by adding the query parameter 
+ * "mc_ignore_do_not_minify_flag=1" to the URL of any page using that template.
+ * Then you will receive the warning again and you can then select the
+ * 'safe to minify' option.
  * 
  * This generated JSON configuration file can be downloaded and further edited to
  * fine tune the minify process and imported back into W3TC. The download link is

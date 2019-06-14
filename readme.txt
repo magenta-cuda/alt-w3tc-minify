@@ -2,8 +2,8 @@
 Contributors: Magenta Cuda
 Tags: W3TC, minify, JavaScript
 Requires at least: 5.0
-Tested up to: 5.0
-Stable tag: 1.0.0.1
+Tested up to: 5.2.1
+Stable tag: 1.1
 Requires PHP: 7.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
@@ -49,6 +49,14 @@ N.B. - W3TC "Minify mode" must be set to "Manual" for W3TC to use the ordered li
 
 == Changelog ==
 
+= 1.1 =
+* Detect out of order 'localize', 'translation', 'before' and 'after' scripts.
+* Link to let user select 'do not minify' option for templates with out of order scripts.
+* Link to reset the plugin. 
+* Link to dump the map of theme hash to theme directories.
+* Link to dump the plugin log.
+* Query parameter to override the 'do not minify' option on a template.
+
 = 1.0.0.1 =
 * Reformat the readme.txt
 
@@ -56,6 +64,14 @@ N.B. - W3TC "Minify mode" must be set to "Manual" for W3TC to use the ordered li
 * Initial
 
 == Upgrade Notice ==
+
+= 1.1 =
+* Detect out of order 'localize', 'translation', 'before' and 'after' scripts.
+* Link to let user select 'do not minify' option for templates with out of order scripts.
+* Link to reset the plugin. 
+* Link to dump the map of theme hash to theme directories.
+* Link to dump the plugin log.
+* Query parameter to override the 'do not minify' option on a template.
 
 = 1.0.0.1 =
 * Reformat the readme.txt
