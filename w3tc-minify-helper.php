@@ -72,6 +72,7 @@
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_log"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_skipped"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_theme_map"));'
+ *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_miscellaneous"));'
  *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
  *
  * The second command is useful in verifying that a view of a representative web
@@ -84,18 +85,20 @@
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_log");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_skipped");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_theme_map");'
- *     php wp-cli.phar eval 'unlink( W3TC_CONFIG_DIR . "/" . MC_Alt_W3TC_Minify::CONF_FILE_NAME );'
+ *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_miscellaneous");'
+ *     php wp-cli.phar eval 'unlink( W3TC_CONFIG_DIR . "/mc_alt_w3tc_minify.json" );'
  */
 
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME            = 'W3TC Minify Helper';
     const OPTION_NAME            = 'mc_alt_w3tc_minify';
-    const CONF_FILE_NAME         = 'mc_alt_w3tc_minify.json';
     const OPTION_LOG_NAME        = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME    = 'mc_alt_w3tc_minify_skipped';
     const OPTION_THEME_MAP       = 'mc_alt_w3tc_minify_theme_map';
     const OPTION_USE_INCLUDE     = 'mc_alt_w3tc_minify_use_include';
+    const OPTION_MISCELLANEOUS   = 'mc_alt_w3tc_minify_miscellaneous';
     const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
+    const CONF_FILE_NAME         = 'mc_alt_w3tc_minify.json';
     const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
     const DO_NOT_MINIFY          = 'DO NOT MINIFY';
     const OVERRIDE_DO_NOT_MINIFY = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
@@ -103,6 +106,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
     const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
     const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
+    const AJAX_GET_MISC          = 'mc_alt_w3tc_minify_get_misc';
     private static $theme        = NULL;   # MD5 of the current theme
     private static $basename     = NULL;   # the basename of the current template in the current theme
     private static $the_data     = NULL;   # the database of this plugin
@@ -290,23 +294,27 @@ EOD
                             && ( $order = 'before' ) )
                 ) {
                     $notice_id = md5( self::$theme . self::$basename . $src . $position . $order );
-                    $ajax_url  = admin_url( 'admin-ajax.php', 'relative' )
-                                        . '?action='                  . self::AJAX_SET_TEMPLATE_SKIP 
-                                        . '&theme='                   . self::$theme
-                                        . '&basename='                . self::$basename
-                                        . '&' . self::NOTICE_ID . '=' . $notice_id
-                                        . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+                    $ajax_url      = admin_url( 'admin-ajax.php', 'relative' )
+                                         . '?action='                  . self::AJAX_SET_TEMPLATE_SKIP 
+                                         . '&theme='                   . self::$theme
+                                         . '&basename='                . self::$basename
+                                         . '&' . self::NOTICE_ID . '=' . $notice_id
+                                         . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+                    $misc_ajax_url = admin_url( 'admin-ajax.php', 'relative' )
+                                         . '?action='                  . self::AJAX_GET_MISC
+                                         . '&key='                     . $notice_id;
                     # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
                     $theme     = self::$theme;
                     $basename  = self::$basename;
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
-: WARNING: In template "$theme.$basename" the script "$src" has a $position script which will be emitted $order itself.
-An action is required to resolve this. Either
+: WARNING: In template "$theme.$basename" the script "$src" has a <a href="{$misc_ajax_url}" target="_blank">$position</a>
+script which will be emitted $order itself. An action is required to resolve this. Either
 <a href="{$ajax_url}&skip=1">Do not minify this template.</a>
 or
 <a href="{$ajax_url}&skip=0">Safe to minify this template.</a>
 EOD
                     );
+                    self::add_miscellaneous( $notice_id, $tag );
                 }
             }
             return $tag;
@@ -318,6 +326,7 @@ EOD
                 self::update_database();            
             }
         } );
+        self::delete_old_miscellaneous( 86400 * 10 );
     }
     public static function admin_init() {
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
@@ -448,6 +457,18 @@ EOD
 <?php
     print_r( get_option( self::OPTION_LOG_NAME, [] ) );
 ?>
+</pre></body>
+</html>
+<?php
+            exit();
+        } );
+        # a quick hack to dump the note by key from miscellaneous abusing wordpress AJAX.
+        add_action( 'wp_ajax_' . self::AJAX_GET_MISC, function() {
+            $note = htmlspecialchars( self::get_miscellaneous( $_REQUEST['key'] ), ENT_NOQUOTES );
+?>
+<html>
+<body><pre>
+<?php echo $note; ?>
 </pre></body>
 </html>
 <?php
@@ -586,6 +607,31 @@ EOD
         }
         set_transient( self::TRANSIENT_NAME, $notices );
     }
+    private static function add_miscellaneous( $key, $note ) {
+        $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
+        $notes[ $key ] = [
+                             'time' => time(),
+                             'note' => $note
+        ];
+        update_option( self::OPTION_MISCELLANEOUS, $notes );
+    }
+    private static function get_miscellaneous( $key ) {
+        $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
+        return array_key_exists( $key, $notes ) ? $notes[ $key ]['note'] : '';
+    }
+    private static function delete_miscellaneous( $key ) {
+        $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
+        unset( $notes[ $key ] );
+        update_option( self::OPTION_MISCELLANEOUS, $notes );
+    }
+    private static function delete_old_miscellaneous( $limit = 86400 * 10 ) {
+        $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
+        $now   = time();
+        $notes = array_filter( $notes, function( $value ) use ( $now, $limit ) {
+            return $now - $value['time'] < $limit;
+        } );
+        update_option( self::OPTION_MISCELLANEOUS, $notes );
+     }
 }
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
