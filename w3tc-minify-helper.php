@@ -83,7 +83,8 @@
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_log");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_skipped");'
- * 
+ *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_theme_map");'
+ *     php wp-cli.phar eval 'unlink( W3TC_CONFIG_DIR . "/" . MC_Alt_W3TC_Minify::CONF_FILE_NAME );'
  */
 
 class MC_Alt_W3TC_Minify {
@@ -190,7 +191,18 @@ EOD
         # minify' mode and alternate design can avoid this problem but currently I don't see how to incorporate it into
         # the W3TC framework.) The best we can do for now is issue warnings if the relative order of a JavaScript file
         # and its 'additional' inline <script> elements is changed and let the user choose not to minify the current
-        # template.
+        # template. A script tag with all additional HTML elements would look like:
+        #
+        # <!--[if lt IE 9]>
+        # <script type='text/javascript'>/* localize script */</script>
+        # <![endif]-->
+        # <!--[if lt IE 9]>
+        # <script type='text/javascript'>/* translation script */</script>
+        # <script type='text/javascript'>/* before script */</script>
+        # <script type='text/javascript' src='http://url/of/the/file.js'></script>
+        # <script type='text/javascript'>/* after script */</script>
+        # <![endif]-->
+        #
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( self::$skip ) {
                 return $tag;
@@ -217,19 +229,20 @@ EOD
                     $condition       = $matches[1];
                 }
                 # Check if there is a 'translation', 'before' or 'after' script for this script.
-                $matched = preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER );
-                # error_log( 'FILTER::script_loader_tag(): $matches=' . print_r( $matches, TRUE ) );
-                foreach ( $matches as $index => $match ) {
-                    if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
-                        $src_index = $index;
-                        # error_log( 'FILTER::script_loader_tag(): $src_index=' . $src_index );
-                    } else {
-                        if ( empty( $src_index ) ) {
-                            $has_before_script = TRUE;
-                            # error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
+                if ( preg_match_all( '#<script.*?</script>#s', $tag, $matches,  PREG_SET_ORDER ) ) {
+                    # error_log( 'FILTER::script_loader_tag(): $matches=' . print_r( $matches, TRUE ) );
+                    foreach ( $matches as $index => $match ) {
+                        if ( preg_match( '#\ssrc=(\'|").+?\1#', $match[0], $matches1 ) ) {
+                            $src_index = $index;
+                            # error_log( 'FILTER::script_loader_tag(): $src_index=' . $src_index );
                         } else {
-                            $has_after_script  = TRUE;
-                            # error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
+                            if ( empty( $src_index ) ) {
+                                $has_before_script = TRUE;
+                                # error_log( "FILTER::script_loader_tag(): '$src' has a before script." );
+                            } else {
+                                $has_after_script  = TRUE;
+                                # error_log( "FILTER::script_loader_tag(): '$src' has a after script." );
+                            }
                         }
                     }
                 }
@@ -245,6 +258,7 @@ EOD
                     # section will be emitted before the minified file.
                     self::$files['include-body']['files'][] = $src;
                 }
+                # Issue a warning if the script tag is bracketed by a HTML conditional comment.
                 if ( ! empty( $has_conditional ) ) {
                     $notice_id = md5( self::$theme . self::$basename . $src . $condition );
                     $ajax_url  = admin_url( 'admin-ajax.php', 'relative' )
@@ -275,9 +289,7 @@ EOD
                     || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )
                             && ( $order = 'before' ) )
                 ) {
-                    $theme     = self::$theme;
-                    $basename  = self::$basename;
-                    $notice_id = md5( $theme . $basename . $src . $position . $order );
+                    $notice_id = md5( self::$theme . self::$basename . $src . $position . $order );
                     $ajax_url  = admin_url( 'admin-ajax.php', 'relative' )
                                         . '?action='                  . self::AJAX_SET_TEMPLATE_SKIP 
                                         . '&theme='                   . self::$theme
@@ -285,6 +297,8 @@ EOD
                                         . '&' . self::NOTICE_ID . '=' . $notice_id
                                         . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
                     # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
+                    $theme     = self::$theme;
+                    $basename  = self::$basename;
                     self::add_notice( self::PLUGIN_NAME . <<<EOD
 : WARNING: In template "$theme.$basename" the script "$src" has a $position script which will be emitted $order itself.
 An action is required to resolve this. Either
