@@ -100,7 +100,8 @@ class MC_Alt_W3TC_Minify {
     const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
     const CONF_FILE_NAME         = 'mc_alt_w3tc_minify.json';
     const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
-    const DO_NOT_MINIFY          = 'DO NOT MINIFY';
+    const TEMPLATE_WARNINGS      = 'TEMPLATE-WARNINGS';
+    const DO_NOT_MINIFY          = 'DO-NOT-MINIFY';
     const OVERRIDE_DO_NOT_MINIFY = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
     const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
     const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
@@ -140,9 +141,10 @@ class MC_Alt_W3TC_Minify {
             $initial_template = $template;
             return $template;
         }, 0, 1 );
-        # The filter 'template_include' has important side effects.
+        # The filter 'template_include' is used only for side effects.
         # It is used to set the current theme - self::$theme - and the current template - self::$basename.
         # It conditionally enables processing by setting self::$skip = FALSE which is by default set to TRUE.
+        # It detects if the template was selected by the filter 'template_include'.
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
             # self::$theme is a MD5 hash of the theme path, the template and the stylesheet. 
             self::$theme               = \W3TC\Util_Theme::get_theme_key( $map_theme_root = get_theme_root(), 
@@ -183,7 +185,7 @@ EOD
             # If we get here then enable processing.
             self::$skip = FALSE;
             return $template;
-        }, PHP_INT_MAX, 1 );
+        }, PHP_INT_MAX, 1 );   # add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
         # When each HTML <script> tag for a JavaScript file is emitted add an entry to the ordered list of JavaScript
         # files for the current theme and template. In addition to emitting the <script> tag WordPress may prepend
         # 'localize','translation' and 'before' inline <script> elements and append an 'after' inline <script> element.
@@ -221,7 +223,7 @@ EOD
                 self::$files['include-footer']['files'][] = $src;
             } else if ( doing_action( 'wp_head' ) ) {
                 # check if there is a localize script for this script.
-                if ( wp_scripts()->get_data( $handle, 'data' ) ) {
+                if ( $localize_data = wp_scripts()->get_data( $handle, 'data' ) ) {
                     $has_localize_script = TRUE;
                     # error_log( "FILTER::script_loader_tag(): '$src' has a localize script." );
                 }
@@ -274,7 +276,8 @@ EOD
                     # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
                     $theme     = self::$theme;
                     $basename  = self::$basename;
-                    self::add_notice( self::PLUGIN_NAME . <<<EOD
+                    # Queue the template warning as these should only be emitted if the configuration actually changes.
+                    self::manage_notice_queue( self::TEMPLATE_WARNINGS, 'add', self::PLUGIN_NAME . <<<EOD
 : WARNING: In template "$theme.$basename" the script "$src" has a HTML conditional comment - "$condition".
 An action is required to resolve this. Either
 <a href="{$ajax_url}&skip=1">Do not minify this template.</a>
@@ -284,15 +287,13 @@ EOD
                     );
                 }
                 # Localize, translation and before scripts should be emitted before their corresponding script.
-                # After scripts should be emitted after their corresponding script. If this order is not 
-                # preserved issue a warning.
-                if (   ( self::$use_include && ! empty( $has_localize_script ) && ( $position = 'localize' )
-                            && ( $order = 'after' ) )
-                    || ( self::$use_include && ! empty( $has_before_script ) && ( $position = 'before' )
-                            && ( $order = 'after' ) )
-                    || ( ! self::$use_include && ! empty( $has_after_script ) && ( $position = 'after' )
-                            && ( $order = 'before' ) )
-                ) {
+                # After scripts should be emitted after their corresponding script. If this order is not preserved
+                # issue a warning. Because the conditions have side effects the or must be a non short-circuit or.
+                if ( self::non_short_circuit_or(
+                    ( self::$use_include   && ! empty( $has_localize_script ) && ( $position = 'localize' ) && ( $order = 'after' ) ),
+                    ( self::$use_include   && ! empty( $has_before_script )   && ( $position = 'before' )   && ( $order = 'after' ) ),
+                    ( ! self::$use_include && ! empty( $has_after_script )    && ( $position = 'after' )    && ( $order = 'before' ) )
+                ) ) {
                     $notice_id = md5( self::$theme . self::$basename . $src . $position . $order );
                     $ajax_url      = admin_url( 'admin-ajax.php', 'relative' )
                                          . '?action='                  . self::AJAX_SET_TEMPLATE_SKIP 
@@ -306,7 +307,8 @@ EOD
                     # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
                     $theme     = self::$theme;
                     $basename  = self::$basename;
-                    self::add_notice( self::PLUGIN_NAME . <<<EOD
+                    # Queue the template warning as these should only be emitted if the configuration actually changes.
+                    self::manage_notice_queue( self::TEMPLATE_WARNINGS, 'add', self::PLUGIN_NAME . <<<EOD
 : WARNING: In template "$theme.$basename" the script "$src" has a <a href="{$misc_ajax_url}" target="_blank">$position</a>
 script which will be emitted $order itself. An action is required to resolve this. Either
 <a href="{$ajax_url}&skip=1">Do not minify this template.</a>
@@ -314,11 +316,16 @@ or
 <a href="{$ajax_url}&skip=0">Safe to minify this template.</a>
 EOD
                     );
-                    self::add_miscellaneous( $notice_id, $tag );
+                    if ( $position === 'localize' ) {
+                        self::add_miscellaneous( $notice_id, $localize_data );
+                    }
+                    if ( $position === 'before' || $position === 'after' ) {
+                        self::add_miscellaneous( $notice_id, $tag );
+                    }
                 }
             }
             return $tag;
-        }, 10, 3 );
+        }, 10, 3 );   # add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
         # On shutdown update the ordered list of Javascript files for the current theme and template if it is
         # different from its previous value and rebuild the W3TC configuration file if neccessary.
         add_action( 'shutdown', function() {
@@ -327,7 +334,7 @@ EOD
             }
         } );
         self::delete_old_miscellaneous( 86400 * 10 );
-    }
+    }   # public static function init() {
     public static function admin_init() {
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
         # Rather some non standard plugin action links are provided.
@@ -464,11 +471,17 @@ EOD
         } );
         # a quick hack to dump the note by key from miscellaneous abusing wordpress AJAX.
         add_action( 'wp_ajax_' . self::AJAX_GET_MISC, function() {
-            $note = htmlspecialchars( self::get_miscellaneous( $_REQUEST['key'] ), ENT_NOQUOTES );
+            $buffer = '';
+            foreach ( self::get_miscellaneous( $_REQUEST['key'] ) as $note ) {
+                if ( $buffer ) {
+                    $buffer .= '<hr>';
+                }
+                $buffer .= htmlspecialchars( $note, ENT_NOQUOTES );
+            }
 ?>
 <html>
 <body><pre>
-<?php echo $note; ?>
+<?php echo $buffer; ?>
 </pre></body>
 </html>
 <?php
@@ -478,7 +491,7 @@ EOD
         register_deactivation_hook( __FILE__, function() {
             self::reset();
         } );
-    }
+    }   # public static function admin_init() {
     # reset() will remove everything created by this plugin.
     private static function reset() {
         delete_transient( self::TRANSIENT_NAME );
@@ -486,6 +499,7 @@ EOD
         delete_option( self::OPTION_LOG_NAME );
         delete_option( self::OPTION_SKIPPED_NAME );
         delete_option( self::OPTION_THEME_MAP );
+        delete_option( self::OPTION_MISCELLANEOUS );
         @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
     }
     private static function get_the_data() {
@@ -509,6 +523,8 @@ EOD
         $datum =& $data[ self::$theme ][ self::$basename ];
         if ( ( ! empty( $_REQUEST[ self::OVERRIDE_DO_NOT_MINIFY ] ) || $datum !== self::DO_NOT_MINIFY )
             && self::$files !== $datum ) {
+            # First flush the queued template warnings.
+            self::manage_notice_queue( self::TEMPLATE_WARNINGS, 'flush' );
             # Update the array item for the current theme and template.
             if ( self::$files !== self::DO_NOT_MINIFY ) {
                 $datum = self::$files;
@@ -534,8 +550,9 @@ EOD
                                  .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme 
                                  . '</a>'
                                  . '" and the template: "' . self::$basename . '" has been updated.' );
+        } else {
         }
-    }
+    }   # private static function update_database() {
     private static function update_config_file( $new_data ) {
         $config = \W3TC\Config::util_array_from_storage( 0, FALSE );
         # error_log( 'MC_Alt_W3TC_Minify::update_config_file():old $config=' . print_r( $config, TRUE ) );
@@ -565,7 +582,7 @@ EOD
             $config = json_encode( $config );
         }
         \W3TC\Util_File::file_put_contents_atomic( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME, $config );
-    }
+    }   # private static function update_config_file( $new_data ) {
     private static function set_database_to_skip_current_template( $log_entry = '', $notice = '' ) {
         $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
         if ( ! array_key_exists( self::$theme, $skipped ) ) {
@@ -607,17 +624,48 @@ EOD
         }
         set_transient( self::TRANSIENT_NAME, $notices );
     }
+    # Some notices should only be added only if a later condition is true.
+    # These notices are held in a temporary queue and will be added later if the required condition is true.
+    private static function manage_notice_queue( $queue, $action, $notice = NULL ) {
+        static $data = [];
+        switch ( $action ) {
+        case 'add':
+            if ( ! array_key_exists( $queue, $data ) ) {
+                $data[ $queue ]   = [ $notice ];
+            } else {
+                $data[ $queue ][] = $notice;
+            }
+            break;
+        case 'flush':
+            if ( ! empty( $data[ $queue ] ) ) {
+                foreach ( $data[ $queue ] as $notice ) {
+                    self::add_notice( $notice );
+                }
+            }
+        case 'empty':
+            unset( $data[ $queue ] );
+            break;
+        }
+    }
+    # Miscellaneous is currently used to hold meta data for notices using the notice id as the key.
     private static function add_miscellaneous( $key, $note ) {
         $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
-        $notes[ $key ] = [
-                             'time' => time(),
-                             'note' => $note
+        # There may be multiple notes for a given key so $notes[ $key ] is an array.
+        if ( ! array_key_exists( $key, $notes ) ) {
+            $notes[ $key ] = [];
+        }
+        $notes[ $key ][] = [
+                               'time' => time(),
+                               'data' => $note
         ];
         update_option( self::OPTION_MISCELLANEOUS, $notes );
     }
     private static function get_miscellaneous( $key ) {
         $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
-        return array_key_exists( $key, $notes ) ? $notes[ $key ]['note'] : '';
+        # Extract only the 'data' component before returning.
+        return array_key_exists( $key, $notes ) ? array_map( function( $data ) {
+            return $data['data'];
+        }, $notes[ $key ] ) : [];
     }
     private static function delete_miscellaneous( $key ) {
         $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
@@ -627,11 +675,23 @@ EOD
     private static function delete_old_miscellaneous( $limit = 86400 * 10 ) {
         $notes = get_option( self::OPTION_MISCELLANEOUS, [] );
         $now   = time();
-        $notes = array_filter( $notes, function( $value ) use ( $now, $limit ) {
-            return $now - $value['time'] < $limit;
-        } );
+        $notes = array_filter( array_map( function( $data ) use ( $now, $limit ) {
+            return array_filter( $data, function( $value ) use ( $now, $limit ) {
+                return $now - $value['time'] < $limit;
+            } );
+        }, $notes ) );
         update_option( self::OPTION_MISCELLANEOUS, $notes );
-     }
+    }
+    # non_short_circuit_or() implements an or where all conditions are always evaluated.
+    # This is useful when the conditions have side effects.
+    private static function non_short_circuit_or( ...$conditions ) {
+        foreach ( $conditions as $condition ) {
+            if ( $condition ) {
+                return TRUE;
+            }
+        }
+        return FALSE;
+    }
 }
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
