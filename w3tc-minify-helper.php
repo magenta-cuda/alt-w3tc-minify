@@ -111,7 +111,11 @@ class MC_Alt_W3TC_Minify {
     private static $theme        = NULL;   # MD5 of the current theme
     private static $basename     = NULL;   # the basename of the current template in the current theme
     private static $the_data     = NULL;   # the database of this plugin
-    private static $files        = [ 'include' => [ 'files' => [] ], 'include-footer' => [ 'files' => [] ] ];
+    private static $files        = [
+                                        'include'        => [ 'files' => [] ],
+                                        'include-body'   => [ 'files' => [] ],
+                                        'include-footer' => [ 'files' => [] ]
+                                   ];
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
@@ -540,12 +544,21 @@ EOD
         if ( ! array_key_exists( self::$theme, $data ) ) {
             $data[ self::$theme ] = [];
         }
+        if ( ! array_key_exists( self::$basename, $data[ self::$theme ] ) ) {
+            $data[ self::$theme ][ self::$basename ] = [
+                                                           'include'        => [ 'files' => [] ],
+                                                           'include-body'   => [ 'files' => [] ],
+                                                           'include-footer' => [ 'files' => [] ]
+                                                       ];
+        }
         # Check if the ordered JavaScript file list has changed for the current theme and template.
         $datum =& $data[ self::$theme ][ self::$basename ];
         if ( ( ! empty( $_REQUEST[ self::OVERRIDE_DO_NOT_MINIFY ] ) || $datum !== self::DO_NOT_MINIFY )
             && self::$files !== $datum ) {
             # First flush the queued template warnings.
             self::manage_notice_queue( self::TEMPLATE_WARNINGS, 'flush' );
+            # Record exactly how the new configuration differs from the previous configuration.
+            self::log_the_diff( self::$files, $datum );
             # Update the array item for the current theme and template.
             if ( self::$files !== self::DO_NOT_MINIFY ) {
                 $datum = self::$files;
@@ -620,6 +633,18 @@ EOD
             update_option( self::OPTION_SKIPPED_NAME, $skipped );
         }
     }
+    private static function log_the_diff( $new, $old ) {
+        if ( $new === self::DO_NOT_MINIFY || $old === self::DO_NOT_MINIFY ) {
+            return;
+        }
+        $diff = new stdClass(); 
+        foreach ( [ 'include', 'include-body', 'include-footer' ] as $location ) {
+            $diff->{$location}          = new stdClass();
+            $diff->{$location}->added   = array_diff( $new[ $location ]['files'], $old[ $location ]['files'] );
+            $diff->{$location}->removed = array_diff( $old[ $location ]['files'], $new[ $location ]['files'] );
+        }
+        self::add_log_entry( $diff );
+    }
     # In a non-frontend environment (AJAX) the current template must be manually set.
     private static function set_current_template( $theme, $basename ) {
         self::$theme    = $theme;
@@ -633,7 +658,7 @@ EOD
         if ( ! array_key_exists( self::$basename, $log[ self::$theme ] ) ) {
             $log[ self::$theme ][ self::$basename ] = [];
         }
-        $log[ self::$theme ][ self::$basename ][] = current_time( 'mysql' ) . ": $entry ";
+        $log[ self::$theme ][ self::$basename ][] = (object) [ 'time' => current_time( 'mysql' ), 'data' => $entry ];
         update_option( self::OPTION_LOG_NAME, $log );
     }
     private static function add_notice( $notice ) {
