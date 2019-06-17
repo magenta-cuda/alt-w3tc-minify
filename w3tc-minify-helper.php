@@ -273,6 +273,8 @@ EOD
                                         . '&basename='                . self::$basename
                                         . '&' . self::NOTICE_ID . '=' . $notice_id
                                         . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+                    # The action, theme and basename substring must match the regex
+                    # '#(\?action=' . self::AJAX_SET_TEMPLATE_SKIP . '&theme=\w+&basename=\w+&)#'.
                     # error_log( 'FILTER::script_loader_tag(): $ajax_url=' . $ajax_url );
                     $theme     = self::$theme;
                     $basename  = self::$basename;
@@ -301,6 +303,8 @@ EOD
                                          . '&basename='                . self::$basename
                                          . '&' . self::NOTICE_ID . '=' . $notice_id
                                          . '&_wpnonce='                . wp_create_nonce( self::AJAX_SET_TEMPLATE_SKIP );
+                    # The action, theme and basename substring must match the regex
+                    # '#(\?action=' . self::AJAX_SET_TEMPLATE_SKIP . '&theme=\w+&basename=\w+&)#'.
                     $misc_ajax_url = admin_url( 'admin-ajax.php', 'relative' )
                                          . '?action='                  . self::AJAX_GET_MISC
                                          . '&key='                     . $notice_id;
@@ -430,10 +434,27 @@ EOD
             # Remove the corresponding transient notice. 
             $notice_id = $_REQUEST[ self::NOTICE_ID ];
             $notices   = get_transient( self::TRANSIENT_NAME );
+            $match     = NULL;
             foreach ( $notices as $i => $notice ) {
                 if ( strpos( $notice, $notice_id ) !== FALSE ) {
+                    # Extract the action, theme and basename substring.
+                    if ( preg_match( '#(\?action=' . self::AJAX_SET_TEMPLATE_SKIP . '&theme=\w+&basename=\w+&)#', $notice, $matches ) === 1 ) {
+                        $match = $matches[0];
+                        error_log( 'ACTION::wp_ajax_' . self::AJAX_SET_TEMPLATE_SKIP .'():$match="' . $match . '"' );
+                    } else {
+                        # This is an error as the action, theme and basename substring must exists.
+                        error_log( self::PLUGIN_NAME . ': Error 1' );
+                    }
                     unset( $notices[ $i ] );
                     break;
+                }
+            }
+            # Remove other notices for the same action, theme and basename as these notices are now invalid.
+            if ( $match !== NULL ) {
+                foreach ( $notices as $i => $notice ) {
+                    if ( strpos( $notice, $match ) !== FALSE ) {
+                        unset( $notices[ $i ] );
+                    }
                 }
             }
             delete_transient( self::TRANSIENT_NAME );
