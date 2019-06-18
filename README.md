@@ -21,13 +21,13 @@ conditional HTML comment.
     <!--[if lt IE 9]>
     <script type='text/javascript'>/* translation script */</script>
     <script type='text/javascript'>/* before script */</script>
-    <script type='text/javascript' src='http://url/of/the/file.js'></script>
+    <script type='text/javascript' src='http://url/of/the/file.js'></script><!-- THIS IS THE TAG OF THE ACTUAL JAVASCRIPT FILE -->
     <script type='text/javascript'>/* after script */</script>
     <![endif]-->
 
 In "Manual Minify" mode the "localize", "translation", "before" and "after"
 scripts are emitted in their normal location. But the <script> tag of the
-JavaScript file is not emitted but instead the code of the script file
+JavaScript file is not emitted but instead the code of the JavaScript file
 is appended to a batch file which is emitted in another location. This means
 that the order of the execution of the code in the "localize", "translation",
 "before", and "after" inline <script> elements and the code of the JavaScript

@@ -80,6 +80,9 @@
  *
  * AJAX actions have been abused to return complete HTML pages so you can dump this plugin's database, logs and notes by:
  *   
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_log
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_database
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_theme_map
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_the_diff&theme=ce894&basename=page
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
@@ -113,6 +116,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
     const AJAX_GET_MISC          = 'mc_alt_w3tc_minify_get_misc';
     const AJAX_GET_THE_DIFF      = 'mc_alt_w3tc_minify_get_the_diff';
+    const AJAX_GET_DATABASE      = 'mc_alt_w3tc_minify_get_database';
     private static $theme        = NULL;   # MD5 of the current theme
     private static $basename     = NULL;   # the basename of the current template in the current theme
     private static $the_data     = NULL;   # the database of this plugin
@@ -126,7 +130,8 @@ class MC_Alt_W3TC_Minify {
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
     # list of JavaScript files. Other files that need to be omitted can be entered into $files_to_skip.
     private static $files_to_skip = [
-        "/wp-includes/js/admin-bar.js"
+        '/wp-includes/js/admin-bar.js',
+        '/wp-includes/js/admin-bar.min.js'
     ];
     # By default processing is skipped. The filter 'template_include' will conditionally enable processing.
     private static $skip          = TRUE;
@@ -502,11 +507,15 @@ EOD
         # a quick hack to dump the note by key from miscellaneous abusing wordpress AJAX.
         add_action( 'wp_ajax_' . self::AJAX_GET_MISC, function() {
             $buffer = '';
-            foreach ( self::get_miscellaneous( $_REQUEST['key'] ) as $note ) {
-                if ( $buffer ) {
-                    $buffer .= '<hr>';
+            if ( ! empty( $_REQUEST['key'] ) ) {
+                foreach ( self::get_miscellaneous( $_REQUEST['key'] ) as $note ) {
+                    if ( $buffer ) {
+                        $buffer .= '<hr>';
+                    }
+                    $buffer .= htmlspecialchars( $note, ENT_NOQUOTES );
                 }
-                $buffer .= htmlspecialchars( $note, ENT_NOQUOTES );
+            } else {
+                $buffer = 'Error: Action "' . self::AJAX_GET_MISC . '" requires query parameter "key".';
             }
 ?>
 <html>
@@ -528,6 +537,17 @@ EOD
 <html>
 <body><pre>
 <?php print_r( $diff ); ?>
+</pre></body>
+</html>
+<?php
+            exit();
+        } );
+        # a quick hack to dump the database abusing wordpress AJAX.
+        add_action( 'wp_ajax_' . self::AJAX_GET_DATABASE, function() {
+?>
+<html>
+<body><pre>
+<?php print_r( get_option( 'mc_alt_w3tc_minify' ) ); ?>
 </pre></body>
 </html>
 <?php
