@@ -77,6 +77,10 @@
  *
  * The second command is useful in verifying that a view of a representative web
  * page has been done for each of your templates.
+ *
+ * AJAX actions have been abused to return complete HTML pages so you can dump this plugin's database, logs and notes by:
+ *   
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_the_diff&theme=ce894&basename=page
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
  *
@@ -108,6 +112,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
     const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
     const AJAX_GET_MISC          = 'mc_alt_w3tc_minify_get_misc';
+    const AJAX_GET_THE_DIFF      = 'mc_alt_w3tc_minify_get_the_diff';
     private static $theme        = NULL;   # MD5 of the current theme
     private static $basename     = NULL;   # the basename of the current template in the current theme
     private static $the_data     = NULL;   # the database of this plugin
@@ -512,6 +517,22 @@ EOD
 <?php
             exit();
         } );
+        # a quick hack to dump the latest diff for a template abusing wordpress AJAX.
+        add_action( 'wp_ajax_' . self::AJAX_GET_THE_DIFF, function() {
+            if ( isset( $_REQUEST['theme'], $_REQUEST['basename'] ) ) {
+                $diff = self::get_the_latest_diff( $_REQUEST['theme'], $_REQUEST['basename'] );
+            } else {
+                $diff = 'Error: Action "' . self::AJAX_GET_THE_DIFF . '" requires query parameters "theme" and "basename".';
+            }
+?>
+<html>
+<body><pre>
+<?php print_r( $diff ); ?>
+</pre></body>
+</html>
+<?php
+            exit();
+        } );
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
             self::reset();
@@ -581,9 +602,11 @@ EOD
             self::add_notice( self::PLUGIN_NAME
                                  . ': The ordered list of JavaScript files for the theme: "'
                                  . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
-                                 .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme 
-                                 . '</a>'
-                                 . '" and the template: "' . self::$basename . '" has been updated.' );
+                                 .     self::AJAX_GET_THEME_MAP . '" target="_blank">' . self::$theme . '</a>'
+                                 . '" and the template: "' . self::$basename . '" has been '
+                                 . '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action='
+                                 .     self::AJAX_GET_THE_DIFF . '&theme=' . self::$theme . '&basename='
+                                 .     self::$basename . '" target="_blank">updated</a>.' );
         } else {
         }
     }   # private static function update_database() {
@@ -633,6 +656,7 @@ EOD
             update_option( self::OPTION_SKIPPED_NAME, $skipped );
         }
     }
+    # log_the_diff() compute exactly how the new conf differs from the old conf and saves the diff to the log.
     private static function log_the_diff( $new, $old ) {
         if ( $new === self::DO_NOT_MINIFY || $old === self::DO_NOT_MINIFY ) {
             return;
@@ -644,6 +668,27 @@ EOD
             $diff->{$location}->removed = array_diff( $old[ $location ]['files'], $new[ $location ]['files'] );
         }
         self::add_log_entry( $diff );
+    }
+    # get_the_latest_diff() finds the most recent diff for the template $basename of $theme.
+    private static function get_the_latest_diff( $theme, $basename ) {
+        $log = get_option( self::OPTION_LOG_NAME, [] );
+        if ( ! array_key_exists( $theme, $log ) ) {
+            return NULL;
+        }
+        if ( ! array_key_exists( $basename, $log[ $theme ] ) ) {
+            return NULL;
+        }
+        $data = $log[ $theme ][ $basename ];
+        for ( end( $data ); ; prev( $data ) ) {
+            if ( ( $datum = current( $data )->data ) === FALSE ) {
+                return NULL;
+            }
+            if ( is_object( $datum ) && property_exists( $datum, 'include' )
+                && is_object( $datum->include ) && property_exists( $datum->include, 'added' ) ) {
+                return $datum;
+            }
+        }
+        return NULL;
     }
     # In a non-frontend environment (AJAX) the current template must be manually set.
     private static function set_current_template( $theme, $basename ) {
