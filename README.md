@@ -36,3 +36,28 @@ also append the code in the "localize", "translation", "before" and "after"
 inline <script> elements into the batch file along with the code of the
 JavaScript file. However, W3TC does not do this.
 
+WT3C 0.9.7.5 in "Auto Minify" mode also does not batch the "localize",
+"translation", "before" and "after" inline <script> elements. Rather it stops
+batching when it encounters a "localize", "translation", "before" or "after"
+inline <script> element" and flushes the current batch file, emits the inline
+script element and starts a new batch file. This results in multiple batch
+files instead of one.
+ 
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/0ae95.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/dc06c.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/63a69.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/b4041.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/ab379.js"></script>
+    <!--[if lt IE 9]>"
+    <script>/* some "localize" script */</script>
+    <![endif]-->
+    <!--[if lt IE 9]>
+    <script>/* some "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/plugins/.../some-javascript-file.js"></script>
+    <script>/* some "after" script */</script>
+    <![endif]-->
