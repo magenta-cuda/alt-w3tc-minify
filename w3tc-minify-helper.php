@@ -128,7 +128,12 @@ class MC_Alt_W3TC_Minify {
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
-    # list of JavaScript files. Other files that need to be omitted can be entered into $files_to_skip.
+    # list of JavaScript files. Other files that need to be omitted can be entered into $files_to_skip. "admin-bar.js"
+    # is easy to handle since it has no dependencies. If you skip a file with dependencies you may also need to skip
+    # the dependencies depending on whether or not the batch file is included before or after the skipped file. A
+    # skipped file is emitted at its normal location. A "include" batch file is emitted just after the <head> tag,
+    # a "include-body" batch file is emitted just after the <body> tag and a "include-footer" batch file is emitted
+    # just before the </body> tag.
     private static $files_to_skip = [
         '/wp-includes/js/admin-bar.js',
         '/wp-includes/js/admin-bar.min.js'
