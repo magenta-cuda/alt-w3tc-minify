@@ -53,6 +53,10 @@ pages this isn't true. A JavaScript file can be dynamically included in a web
 page. E.g., "admin-bar.js" is included on a web page only if the administrator
 is logged in.
 
+If you are interested in verifying the above for yourself you can find the
+implementation of W3TC 0.9.7.5 JavaScript minification in "manual mode" in the
+function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
+
 ## auto mode
 
 WT3C 0.9.7.5 in "Auto Minify" mode also does not batch the "localize",
@@ -80,3 +84,7 @@ files instead of one.
     <script src="http://localhost/wp-content/plugins/.../some-javascript-file.js"></script>
     <script>/* some "after" script */</script>
     <![endif]-->
+
+If you are interested in verifying the above for yourself you can find the
+implementation of W3TC 0.9.7.5 JavaScript minification in "auto mode" in the
+class Minify_AutoJs in the file "Minify_AutoJs.php".
