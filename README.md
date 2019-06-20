@@ -8,6 +8,11 @@ the same order as without minification. So, I wrote this plugin to do this.
 There is a significant restriction when using manual minify mode. W3TC in
 manual minify mode cannot handle templates loaded using the 'template_include'
 filter. I have a [topic](https://wordpress.org/support/topic/problem-in-manual-minify-mode-when-a-plugin-uses-the-filter-template_include/) in the WordPress support forum on this problem.
+I find the response very confusing. This problem really does exists and can be
+verified by reading W3TC's source code. See the function
+Minify_Plugin::get_template() in the file "Minify_Plugin.php".which just
+duplicates the code in WordPress's wp-includes/template-loader.php except
+it doesn't include the filter.
 
 # My Analysis of W3TC 0.9.7.5 JavaScript Minification
 
@@ -55,7 +60,10 @@ is logged in.
 
 If you are interested in verifying the above for yourself you can find the
 implementation of W3TC 0.9.7.5 JavaScript minification in "manual mode" in the
-function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
+function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php". The
+problem with the filter 'template_include' is caused by the function
+Minify_Plugin::get_template() which just duplicates the code in WordPress's 
+wp-includes/template-loader.php except it doesn't include the filter.
 
 ## auto mode
 
