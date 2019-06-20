@@ -9,7 +9,7 @@ There is a significant restriction when using manual minify mode. W3TC in
 manual minify mode cannot handle templates loaded using the 'template_include'
 filter. I have a [topic](https://wordpress.org/support/topic/problem-in-manual-minify-mode-when-a-plugin-uses-the-filter-template_include/) in the WordPress support forum on this problem.
 
-# My Analysis of W3TC JavaScript Minification
+# My Analysis of W3TC 0.9.7.5 JavaScript Minification
 
 ## manual mode
 
