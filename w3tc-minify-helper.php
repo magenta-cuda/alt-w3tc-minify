@@ -74,9 +74,11 @@
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_theme_map"));'
  *     php wp-cli.phar eval 'print_r(get_option("mc_alt_w3tc_minify_miscellaneous"));'
  *     php wp-cli.phar eval 'print_r(get_transient("mc_alt_w3tc_minify"));'
+ *     php wp-cli.phar eval 'print_r(json_decode(get_option("w3tc_minify"),true));' 
  *
  * The second command is useful in verifying that a view of a representative web
- * page has been done for each of your templates.
+ * page has been done for each of your templates. The last command dumps W3TC's
+ * map of minified files to their component files.
  *
  * AJAX actions have been abused to return complete HTML pages so you can dump this plugin's database, logs and notes by:
  *   
@@ -84,6 +86,8 @@
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_database
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_theme_map
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_the_diff&theme=ce894&basename=page
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_w3tc_minify_map
+ *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_w3tc_minify_map&file=94796.js
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
  *
@@ -117,6 +121,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_GET_MISC          = 'mc_alt_w3tc_minify_get_misc';
     const AJAX_GET_THE_DIFF      = 'mc_alt_w3tc_minify_get_the_diff';
     const AJAX_GET_DATABASE      = 'mc_alt_w3tc_minify_get_database';
+    const AJAX_GET_MINIFY_MAP    = 'mc_alt_w3tc_minify_get_w3tc_minify_map';
     private static $theme        = NULL;   # MD5 of the current theme
     private static $basename     = NULL;   # the basename of the current template in the current theme
     private static $the_data     = NULL;   # the database of this plugin
@@ -553,6 +558,23 @@ EOD
 <html>
 <body><pre>
 <?php print_r( get_option( 'mc_alt_w3tc_minify' ) ); ?>
+</pre></body>
+</html>
+<?php
+            exit();
+        } );
+        # a quick hack to dump W3TC's map of minified files to their component files.
+        add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_MAP, function() {
+?>
+<html>
+<body><pre>
+<?php
+    if ( ! empty( $_REQUEST['file'] ) ) {
+        print_r( json_decode( get_option( 'w3tc_minify', [] ), TRUE )[ $_REQUEST['file'] ] );
+    } else {
+        print_r( json_decode( get_option( 'w3tc_minify', [] ), TRUE ) );
+    }
+?>
 </pre></body>
 </html>
 <?php

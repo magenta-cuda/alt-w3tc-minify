@@ -10,7 +10,7 @@ manual minify mode cannot handle templates loaded using the 'template_include'
 filter. I have a [topic](https://wordpress.org/support/topic/problem-in-manual-minify-mode-when-a-plugin-uses-the-filter-template_include/) in the WordPress support forum on this problem.
 I find the response very confusing. This problem really does exists and can be
 verified by reading W3TC's source code. See the function
-Minify_Plugin::get_template() in the file "Minify_Plugin.php".which just
+Minify_Plugin::get_template() in the file "Minify_Plugin.php" which just
 duplicates the code in WordPress's wp-includes/template-loader.php except
 it doesn't include the filter.
 
