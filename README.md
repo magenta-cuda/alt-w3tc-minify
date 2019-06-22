@@ -96,3 +96,29 @@ files instead of one.
 If you are interested in verifying the above for yourself you can find the
 implementation of W3TC 0.9.7.5 JavaScript minification in "auto mode" in the
 class Minify_AutoJs in the file "Minify_AutoJs.php".
+
+# Simplified Description of W3TC's JavaScript Minification Algorithms
+
+## manual mode
+
+Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
+sent to browser. W3TC removes <script> elements with a "src" attribute. W3TC inserts
+immediately after the <head> tag a <script> element with "src" attribute set to the "include"
+minified file, inserts immediately after the <body> tag a <script> element with "src" attribute
+set to the "include-body" minified file and inserts just before the </body> tag a <script>
+element with "src" attribute set to the "include-footer" minified file. <script> elements
+without a "src" attribute are not modified.
+
+## auto mode
+
+Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
+sent to browser. W3TC searches for the next <script> element. If this <script> element
+has a "src" attribute the element is removed and the JavaScript file of the "src"
+attribute is appended to the current vector of files to be minified. If this <script>
+element does not have a "src" attribute a <script> element is inserted before this element.
+This inserted <script> element has a "src" attribute set to a minified file whose contents
+is the concatenation of the contents of the files in current vector of files to be minified.
+The current vector of files to be minified is reset to empty and the search for the next
+<script> element is repeated. N.B. the <script> element without a "src" attribute is not
+modified.
+ 
