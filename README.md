@@ -102,12 +102,14 @@ class Minify_AutoJs in the file "Minify_AutoJs.php".
 ## manual mode
 
 Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
-sent to browser. W3TC removes <script> elements with a "src" attribute. W3TC inserts
+sent to browser. W3TC removes <script> elements with a "src" attribute set to a JavaScript
+file in a "include", "include-body" or "include-footer" minified file. W3TC inserts
 immediately after the <head> tag a <script> element with "src" attribute set to the "include"
 minified file, inserts immediately after the <body> tag a <script> element with "src" attribute
 set to the "include-body" minified file and inserts just before the </body> tag a <script>
 element with "src" attribute set to the "include-footer" minified file. <script> elements
-without a "src" attribute are not modified.
+without a "src" attribute are not modified. This algorithm is implemented by W3TC 0.9.7.5
+in the function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
 
 ## auto mode
 
@@ -118,7 +120,8 @@ attribute is appended to the current vector of files to be minified. If this <sc
 element does not have a "src" attribute a <script> element is inserted before this element.
 This inserted <script> element has a "src" attribute set to a minified file whose contents
 is the concatenation of the contents of the files in current vector of files to be minified.
-The current vector of files to be minified is reset to empty and the search for the next
-<script> element is repeated. N.B. the <script> element without a "src" attribute is not
-modified.
+The current vector of files to be minified is reset to empty and the search for the next <script>
+element is repeated. N.B. the <script> element without a "src" attribute is not modified.
+This algorithm is implemented by W3TC 0.9.7.5 in the class Minify_AutoJs in the file
+"Minify_AutoJs.php".
  
