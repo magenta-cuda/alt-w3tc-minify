@@ -581,8 +581,9 @@ EOD
             exit();
         } );
         # Make no_priv versions of above AJAX actions.
-        foreach ( [ AJAX_GET_THEME_MAP, AJAX_GET_LOG, AJAX_GET_THE_DIFF, AJAX_GET_DATABASE, AJAX_GET_MINIFY_MAP ] as $ajax_action ) {
-            add_action( 'wp_ajax_nopriv' . $ajax_action, function() {
+        foreach ( [ self::AJAX_GET_THEME_MAP, self::AJAX_GET_LOG, self::AJAX_GET_THE_DIFF, self::AJAX_GET_DATABASE,
+            self::AJAX_GET_MINIFY_MAP ] as $ajax_action ) {
+            add_action( 'wp_ajax_nopriv_' . $ajax_action, function() use ( $ajax_action ) {
                 do_action( "wp_ajax_{$ajax_action}" );
             } );
         }
