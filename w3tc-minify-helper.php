@@ -361,6 +361,13 @@ EOD
                 self::update_database();            
             }
         } );
+        # Get the default JavaScript minifier used by Minify0_Minify::serve() -> Minify0_Minify::_combineMinify() in Minify.php.
+        # This minifier is not applied to already minified files - ".min.js" files.
+        $w3_minifier = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
+        // $js_minifier = $w3_minifier->get_minifier( 'combinejs' );
+        $js_minifier = $w3_minifier->get_minifier( 'js' );
+        error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
+        # This minifier should be called this way - $minified = call_user_func( $js_minifier, $source, $options );
         self::delete_old_miscellaneous( 86400 * 10 );
     }   # public static function init() {
     public static function admin_init() {

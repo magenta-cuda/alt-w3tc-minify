@@ -127,11 +127,11 @@ This algorithm is implemented by W3TC 0.9.7.5 in the class Minify_AutoJs in the 
  
 # Persistent W3TC 0.9.7.5 JavaScript Minification Data
 
-The parameters for minification can be found in the minify.* properties of W3TC's JSON configuration
-file. This file can be downloaded using "Export configuration:" on W3TC's "General Settings' page.
+The parameters for minification can be found in the "minify.*" properties of W3TC's JSON configuration
+file. This file can be downloaded using "Export configuration:" on W3TC's "General Settings" page.
 
 The minified files are found in the folder .../wp-content/cache/minify.
 
-The list of files contained in a minified file is saved in the WordPress option 'w3tc_minify'.
+The list of files contained in a minified file is saved in the WordPress option "w3tc_minify".
 
     php wp-cli.phar eval 'print_r(json_decode(get_option("w3tc_minify"),true));'  
