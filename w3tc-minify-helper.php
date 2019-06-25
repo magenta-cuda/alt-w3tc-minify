@@ -361,13 +361,6 @@ EOD
                 self::update_database();            
             }
         } );
-        # Get the default JavaScript minifier used by Minify0_Minify::serve() -> Minify0_Minify::_combineMinify() in Minify.php.
-        # This minifier is not applied to already minified files - ".min.js" files.
-        $w3_minifier = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
-        // $js_minifier = $w3_minifier->get_minifier( 'combinejs' );
-        $js_minifier = $w3_minifier->get_minifier( 'js' );
-        error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
-        # This minifier should be called this way - $minified = call_user_func( $js_minifier, $source, $options );
         self::delete_old_miscellaneous( 86400 * 10 );
     }   # public static function init() {
     public static function admin_init() {
@@ -834,6 +827,23 @@ EOD
         }, $notes ) );
         update_option( self::OPTION_MISCELLANEOUS, $notes );
     }
+    public static function minify( $source ) {
+        static $w3_minifier = NULL;
+        if ( $w3_minifier === NULL ) {
+            $w3_minifier = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
+        }
+        if ( ! is_object( $w3_minifier ) ) {
+            return NULL;
+        }
+        # Get the default JavaScript minifier used by Minify0_Minify::serve() -> Minify0_Minify::_combineMinify() in Minify.php.
+        # This minifier is not applied to already minified files - ".min.js" files.
+        // $js_minifier = $w3_minifier->get_minifier( 'combinejs' );
+        $js_minifier = $w3_minifier->get_minifier( 'js' );
+        $js_options  = $w3_minifier->get_options( 'js' );
+        error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
+        error_log( '$js_options=' . print_r( $js_options, true ) );
+        return call_user_func( $js_minifier, $source, $js_options );
+    }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
     private static function non_short_circuit_or( ...$conditions ) {
@@ -867,4 +877,24 @@ if ( defined( 'WP_ADMIN' ) ) {
             MC_Alt_W3TC_Minify::init();
         }
     } );
+}
+# Below for unit testing only.
+if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+    if ( ! defined( 'WP_ADMIN' ) ) {
+        add_action( 'wp_loaded', function() {
+            if ( ! is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+                return;
+            }
+            $source   = <<<EOD
+function( alpha, beta ) {
+    var gamma;
+    gamma = alpha + beta;
+    return gamma;
+}
+EOD;
+            error_log( 'MC_Alt_W3TC_Minify::minify():$source=' . $source );
+            $minified = MC_Alt_W3TC_Minify::minify( $source );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$minified=' . $minified );
+        } );
+    }
 }
