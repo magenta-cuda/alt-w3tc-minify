@@ -845,16 +845,21 @@ EOD
         $js_options  = $w3_minifier->get_options( 'js' );
         error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
         error_log( '$js_options=' . print_r( $js_options, true ) );
+        $cache_id        = md5( serialize( [ $sources, $js_minifier, $js_options ] ) );
         $original_length = 0;
         $content         = [];
         foreach ( $sources as $source ) {
             $original_length += strlen( $source );
             $content[]        = call_user_func( $js_minifier, $source, $js_options );
         }
+        $content         = implode( "\n;", $content );
+        $minify          = \W3TC\Dispatcher::component( 'Minify_MinifiedFileRequestHandler' );
+        $cache           = $minify->_get_cache();
+        $cache->store( $cache_id, [ 'originalLength' => $original_length, 'content' => $content ] );
         return [
             'original_length' => $original_length,
-            'content'         => implode( "\n;", $content ),
-            'cache_id'        => md5( serialize( [ $sources, $js_minifier, $js_options ] ) )
+            'content'         => $content,
+            'cache_id'        => $cache_id
         ];
     }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
