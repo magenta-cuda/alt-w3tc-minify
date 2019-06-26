@@ -827,13 +827,16 @@ EOD
         }, $notes ) );
         update_option( self::OPTION_MISCELLANEOUS, $notes );
     }
-    public static function minify( $source ) {
+    public static function minify( $sources ) {
         static $w3_minifier = NULL;
         if ( $w3_minifier === NULL ) {
             $w3_minifier = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
         }
         if ( ! is_object( $w3_minifier ) ) {
             return NULL;
+        }
+        if ( ! is_array( $sources ) ) {
+            $sources = [ $sources ];
         }
         # Get the default JavaScript minifier used by Minify0_Minify::serve() -> Minify0_Minify::_combineMinify() in Minify.php.
         # This minifier is not applied to already minified files - ".min.js" files.
@@ -842,7 +845,17 @@ EOD
         $js_options  = $w3_minifier->get_options( 'js' );
         error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
         error_log( '$js_options=' . print_r( $js_options, true ) );
-        return call_user_func( $js_minifier, $source, $js_options );
+        $original_length = 0;
+        $content         = [];
+        foreach ( $sources as $source ) {
+            $original_length += strlen( $source );
+            $content[]        = call_user_func( $js_minifier, $source, $js_options );
+        }
+        return [
+            'original_length' => $original_length,
+            'content'         => implode( "\n;", $content ),
+            'cache_id'        => md5( serialize( [ $sources, $js_minifier, $js_options ] ) )
+        ];
     }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
@@ -892,9 +905,11 @@ function( alpha, beta ) {
     return gamma;
 }
 EOD;
-            error_log( 'MC_Alt_W3TC_Minify::minify():$source=' . $source );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$source='          . $source );
             $minified = MC_Alt_W3TC_Minify::minify( $source );
-            error_log( 'MC_Alt_W3TC_Minify::minify():$minified=' . $minified );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$original_length=' . $minified['original_length'] );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$content='         . $minified['content'] );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$cache_id='        . $minified['cache_id'] );
         } );
     }
 }
