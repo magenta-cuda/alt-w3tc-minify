@@ -100,6 +100,8 @@
  *     php wp-cli.phar eval 'unlink( W3TC_CONFIG_DIR . "/mc_alt_w3tc_minify.json" );'
  */
 
+define( 'MC_DEBUG', TRUE );   # TODO: set to FALSE for production
+
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME            = 'W3TC Minify Helper';
     const OPTION_NAME            = 'mc_alt_w3tc_minify';
@@ -846,6 +848,9 @@ EOD
         error_log( '$js_minifier=' . print_r( $js_minifier, true ) );
         error_log( '$js_options=' . print_r( $js_options, true ) );
         $cache_id        = md5( serialize( [ $sources, $js_minifier, $js_options ] ) );
+        # Minify_Core::urls_for_minification_to_minify_filename() actually uses substr( $cache_id, 0, 5 ).
+        # But it also has a collision protection safeguard which I don't want to implement so I use the full md5.
+        $cache_id       .= '.js';
         $original_length = 0;
         $content         = [];
         foreach ( $sources as $source ) {
@@ -856,6 +861,13 @@ EOD
         $minify          = \W3TC\Dispatcher::component( 'Minify_MinifiedFileRequestHandler' );
         $cache           = $minify->_get_cache();
         $cache->store( $cache_id, [ 'originalLength' => $original_length, 'content' => $content ] );
+        # TODO: The compression logic should be determined from Minify0_Minify::$_options['encodeMethod'],
+        # Minify0_Minify::$_options['encodeOutput'], ... But I don't see how to access Minify0_Minify::$_options.
+        # So for now just hardcode gzip.
+        if ( function_exists( 'gzencode' ) ) {
+            $compressed = gzencode( $content, 9 );
+            $cache->store( $cache_id . '_gzip', [ 'originalLength' => $original_length, 'content' => $compressed ] );
+        }
         return [
             'original_length' => $original_length,
             'content'         => $content,
@@ -897,24 +909,32 @@ if ( defined( 'WP_ADMIN' ) ) {
     } );
 }
 # Below for unit testing only.
-if ( defined( 'WP_DEBUG' ) && WP_DEBUG ) {
+if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'MC_DEBUG' ) && MC_DEBUG ) {
     if ( ! defined( 'WP_ADMIN' ) ) {
         add_action( 'wp_loaded', function() {
             if ( ! is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
                 return;
             }
-            $source   = <<<EOD
-function( alpha, beta ) {
+            $source0 = <<<EOD
+function omega( alpha, beta ) {
     var gamma;
     gamma = alpha + beta;
     return gamma;
 }
 EOD;
-            error_log( 'MC_Alt_W3TC_Minify::minify():$source='          . $source );
-            $minified = MC_Alt_W3TC_Minify::minify( $source );
+            $source1 = <<<EOD
+function omicron( alpha, beta ) {
+    var gamma = 1;
+    return = gamma * alpha * beta;
+}
+EOD;
+            error_log( 'MC_Alt_W3TC_Minify::minify():$source0='          .  $source0 );
+            error_log( 'MC_Alt_W3TC_Minify::minify():$source1='          .  $source1 );
+            $minified = MC_Alt_W3TC_Minify::minify( [ $source0, $source1 ] );
             error_log( 'MC_Alt_W3TC_Minify::minify():$original_length=' . $minified['original_length'] );
             error_log( 'MC_Alt_W3TC_Minify::minify():$content='         . $minified['content'] );
             error_log( 'MC_Alt_W3TC_Minify::minify():$cache_id='        . $minified['cache_id'] );
+            # Also verify that files have been created in ".../wp-content/cache/minify".
         } );
     }
 }
