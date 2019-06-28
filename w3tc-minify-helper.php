@@ -912,7 +912,8 @@ if ( defined( 'WP_ADMIN' ) ) {
 if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'MC_DEBUG' ) && MC_DEBUG ) {
     if ( ! defined( 'WP_ADMIN' ) ) {
         add_action( 'wp_loaded', function() {
-            if ( ! is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+            if ( ! is_plugin_active( 'w3-total-cache/w3-total-cache.php' )
+                || \W3TC\Dispatcher::config()->get_boolean( 'minify.auto' ) ) {
                 return;
             }
             $source0 = <<<EOD
