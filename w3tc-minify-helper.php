@@ -100,7 +100,9 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
- * 
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "ENABLED::mc_w3tcm_auto_minify", TRUE );'
+ *
  * The following WP-CLI commands will clear the database data of this plugin:
  *
  *     php wp-cli.phar eval 'delete_transient("mc_alt_w3tc_minify");'
@@ -163,6 +165,7 @@ class MC_Alt_W3TC_Minify {
     private static $skip          = TRUE;
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
     private static $use_include   = FALSE;
+    private static $auto_minify   = FALSE;
     public static function init() {
         # Get additional files to skip.
         $files_to_skip        = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
@@ -894,6 +897,7 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return;
         }
+        self::$auto_minify = ! empty( $options['ENABLED::mc_w3tcm_auto_minify'] );
         if ( ! empty( $options['FILTER::w3tc_process_content'] ) ) {
             add_filter( 'w3tc_process_content', function( $buffer ) {
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
@@ -906,13 +910,20 @@ EOD
         }
         if ( ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) {
+                # This is an inline <script> element.
                 error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
                 self::print_r( $data, '$data' );
                 self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
-                $data['should_replace'] = TRUE;
-                $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
+                if ( self::$auto_minify ) {
+                    # Remove this inline <script> element.
+                    $data['should_replace'] = TRUE;
+                    // TODO: 
+                    $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
+                    // $data['script_tag_new'] = '';
+                }
                 return $data;
-                # flush_collected() will be called after this filter is executed.
+                # flush_collected() will be called after this filter is executed
+                # and flush_collected() will be abused to collect this inline <script> element.
             } );
         }
         if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
@@ -934,20 +945,34 @@ EOD
                 error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
                 self::print_r( $last_script_tag, '$last_script_tag' );
                 self::print_r( $minify_auto_js,  '$minify_auto_js'  );
-                if ( $last_script_tag !== '</head>' ) {
+                # $last_script_tag  === '' means all scripts have been processed i.e., essentially we are at </body>.
+                if ( $last_script_tag !== '</head>' && $last_script_tag  !== '' ) {
+                    # Logic for determining inline <script> elements extracted from Minify_AutoJs::process_script_tag().
                     $match = NULL;
                     if ( !preg_match( '~<script\s+[^<>]*src=["\']?([^"\'> ]+)["\'> ]~is', $last_script_tag, $match ) ) {
                         $match = NULL;
                     }
                     self::print_r( is_null( $match ), 'is_null( $match )' );
                     if ( is_null( $match ) ) {
-                        if ( property_exists( $minify_auto_js, 'mc_inline_scripts' ) ) {
-                            $minify_auto_js->mc_inline_scripts = [];
+                        # No src attribute so this is an inline <script> element.
+                        if ( self::$auto_minify ) {
+                            # Collect this inline <script> element.
+                            if ( ! property_exists( $minify_auto_js, 'mc_inline_scripts' ) ) {
+                                $minify_auto_js->mc_inline_scripts = [];
+                            }
+                            $minify_auto_js->mc_inline_scripts[] = $last_script_tag;
+                            // TODO: 
+                            // $minify_auto_hs->files_to_minify[]   = 'inline-' . ( function_exists( 'array_key_last' )
+                            //                                            ? array_key_last( $minify_auto_js->mc_inline_scripts )
+                            //                                            : count( $minify_auto_js->mc_inline_scripts ) - 1 );
+                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                            return TRUE;
                         }
-                        $minify_auto_js->mc_inline_scripts[] = $last_script_tag;
-                        // return FALSE;   // prevents flush_collected() from executing
                     }
                 }
+                # We are at '</head>' or at '</body>' so flush collected <script> elements.
+                // TODO: replace W3TC's Minify_AutoJs::flush_collected() with self::flush_collected()
+                // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                 return TRUE;
             }, 10, 3 );
         }
@@ -984,8 +1009,8 @@ EOD
             error_log( "{$tabs}{$name} = " . ( $delim === '[' ? 'Array' : $class_name ) . '[' . sizeof( $var ) . "] = {$delim}" );
             foreach ( $var as $index => $value ) {
                 if ( ! ctype_print( $index ) ) {
-                    # TODO: What are these non printable keys?
-                    $index = '?';
+                    # Fix protected and private property names of objects
+                    $index = str_replace( "\x0", '-', $index );
                 }
                 self::print_r( $value, "[$index]" );
             }
