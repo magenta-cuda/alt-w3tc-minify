@@ -88,6 +88,17 @@
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_the_diff&theme=ce894&basename=page
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_w3tc_minify_map
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_w3tc_minify_map&file=94796.js
+ *
+ * The following WP-CLI commands will access my monitor of W3TC's "minify auto js" feature:
+ *
+ *     php wp-cli.phar eval 'print_r( get_option( MC_Alt_W3TC_Minify::OPTION_MONITOR_MINIFY_AUTOJS ) );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
  *
@@ -97,41 +108,43 @@
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_skipped");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_theme_map");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_miscellaneous");'
- *     php wp-cli.phar eval 'unlink( W3TC_CONFIG_DIR . "/mc_alt_w3tc_minify.json" );'
+ *     php wp-cli.phar eval 'unlink( MC_Alt_W3TC_Minify::OUTPUT_DIR . "/" . MC_Alt_W3TC_Minify::CONF_FILE_NAME );'
  */
 
 define( 'MC_DEBUG', TRUE );   # TODO: set to FALSE for production
 
 class MC_Alt_W3TC_Minify {
-    const PLUGIN_NAME            = 'W3TC Minify Helper';
-    const OPTION_NAME            = 'mc_alt_w3tc_minify';
-    const OPTION_LOG_NAME        = 'mc_alt_w3tc_minify_log';
-    const OPTION_SKIPPED_NAME    = 'mc_alt_w3tc_minify_skipped';
-    const OPTION_THEME_MAP       = 'mc_alt_w3tc_minify_theme_map';
-    const OPTION_USE_INCLUDE     = 'mc_alt_w3tc_minify_use_include';
-    const OPTION_MISCELLANEOUS   = 'mc_alt_w3tc_minify_miscellaneous';
-    const TRANSIENT_NAME         = 'mc_alt_w3tc_minify';
-    const CONF_FILE_NAME         = 'mc_alt_w3tc_minify.json';
-    const NOTICE_ID              = 'mc_alt_w3tc_minify_notice_id';
-    const TEMPLATE_WARNINGS      = 'TEMPLATE-WARNINGS';
-    const DO_NOT_MINIFY          = 'DO-NOT-MINIFY';
-    const OVERRIDE_DO_NOT_MINIFY = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
-    const AJAX_RESET             = 'mc_alt_w3tc_minify_reset';
-    const AJAX_SET_TEMPLATE_SKIP = 'mc_alt_w3tc_minify_set_template_skip';
-    const AJAX_GET_THEME_MAP     = 'mc_alt_w3tc_minify_get_theme_map';
-    const AJAX_GET_LOG           = 'mc_alt_w3tc_minify_get_log';
-    const AJAX_GET_MISC          = 'mc_alt_w3tc_minify_get_misc';
-    const AJAX_GET_THE_DIFF      = 'mc_alt_w3tc_minify_get_the_diff';
-    const AJAX_GET_DATABASE      = 'mc_alt_w3tc_minify_get_database';
-    const AJAX_GET_MINIFY_MAP    = 'mc_alt_w3tc_minify_get_w3tc_minify_map';
-    private static $theme        = NULL;   # MD5 of the current theme
-    private static $basename     = NULL;   # the basename of the current template in the current theme
-    private static $the_data     = NULL;   # the database of this plugin
-    private static $files        = [
-                                        'include'        => [ 'files' => [] ],
-                                        'include-body'   => [ 'files' => [] ],
-                                        'include-footer' => [ 'files' => [] ]
-                                   ];
+    const PLUGIN_NAME                  = 'W3TC Minify Helper';
+    const OPTION_NAME                  = 'mc_alt_w3tc_minify';
+    const OPTION_LOG_NAME              = 'mc_alt_w3tc_minify_log';
+    const OPTION_SKIPPED_NAME          = 'mc_alt_w3tc_minify_skipped';
+    const OPTION_THEME_MAP             = 'mc_alt_w3tc_minify_theme_map';
+    const OPTION_USE_INCLUDE           = 'mc_alt_w3tc_minify_use_include';
+    const OPTION_MISCELLANEOUS         = 'mc_alt_w3tc_minify_miscellaneous';
+    const OPTION_MONITOR_MINIFY_AUTOJS = 'mc_alt_w3tc_minify_monitor_minify_autojs';
+    const TRANSIENT_NAME               = 'mc_alt_w3tc_minify';
+    const OUTPUT_DIR                   = W3TC_CONFIG_DIR;
+    const CONF_FILE_NAME               = 'mc_alt_w3tc_minify.json';
+    const NOTICE_ID                    = 'mc_alt_w3tc_minify_notice_id';
+    const TEMPLATE_WARNINGS            = 'TEMPLATE-WARNINGS';
+    const DO_NOT_MINIFY                = 'DO-NOT-MINIFY';
+    const OVERRIDE_DO_NOT_MINIFY       = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
+    const AJAX_RESET                   = 'mc_alt_w3tc_minify_reset';
+    const AJAX_SET_TEMPLATE_SKIP       = 'mc_alt_w3tc_minify_set_template_skip';
+    const AJAX_GET_THEME_MAP           = 'mc_alt_w3tc_minify_get_theme_map';
+    const AJAX_GET_LOG                 = 'mc_alt_w3tc_minify_get_log';
+    const AJAX_GET_MISC                = 'mc_alt_w3tc_minify_get_misc';
+    const AJAX_GET_THE_DIFF            = 'mc_alt_w3tc_minify_get_the_diff';
+    const AJAX_GET_DATABASE            = 'mc_alt_w3tc_minify_get_database';
+    const AJAX_GET_MINIFY_MAP          = 'mc_alt_w3tc_minify_get_w3tc_minify_map';
+    private static $theme              = NULL;   # MD5 of the current theme
+    private static $basename           = NULL;   # the basename of the current template in the current theme
+    private static $the_data           = NULL;   # the database of this plugin
+    private static $files              = [
+                                             'include'        => [ 'files' => [] ],
+                                             'include-body'   => [ 'files' => [] ],
+                                             'include-footer' => [ 'files' => [] ]
+                                        ];
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
     # trigger a rebuild of the W3TC configuration file. To solve this we will omit admin-bar.js from the ordered
@@ -364,12 +377,13 @@ EOD
             }
         } );
         self::delete_old_miscellaneous( 86400 * 10 );
+        self::monitor_minify_autojs();
     }   # public static function init() {
     public static function admin_init() {
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
         # Rather some non standard plugin action links are provided.
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
-            if ( file_exists( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME ) ) {
+            if ( file_exists( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME ) ) {
                 # Add the download link for the generated conf file after the "Deactivate" link.
                 array_push( $links,
                     '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME
@@ -602,7 +616,7 @@ EOD
         delete_option( self::OPTION_SKIPPED_NAME );
         delete_option( self::OPTION_THEME_MAP );
         delete_option( self::OPTION_MISCELLANEOUS );
-        @unlink( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME );
+        @unlink( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME );
     }
     private static function get_the_data() {
         if ( self::$the_data === NULL ) {
@@ -694,7 +708,7 @@ EOD
         } else {  // for older php versions
             $config = json_encode( $config );
         }
-        \W3TC\Util_File::file_put_contents_atomic( W3TC_CONFIG_DIR . '/' . self::CONF_FILE_NAME, $config );
+        \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME, $config );
     }   # private static function update_config_file( $new_data ) {
     private static function set_database_to_skip_current_template( $log_entry = '', $notice = '' ) {
         $skipped = get_option( self::OPTION_SKIPPED_NAME, [] );
@@ -874,6 +888,48 @@ EOD
             'cache_id'        => $cache_id
         ];
     }
+    # monitor_minify_autojs() can analyze the operation of Minify_AutoJs.php.
+    public static function monitor_minify_autojs() {
+        if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
+            return;
+        }
+        if ( ! empty( $options['FILTER::w3tc_process_content'] ) ) {
+            add_filter( 'w3tc_process_content', function( $buffer ) {
+                \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
+            } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_processed_content'] ) ) {
+            add_filter( 'w3tc_processed_content', function( $buffer ) {
+                \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_processed_content_buffer', $buffer );
+            } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) {
+            add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) {
+                error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
+                self::print_r( $data, 'data' );
+                return $data;
+            } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
+            add_filter( 'w3tc_minify_js_step', function( $data ) {
+                error_log( 'FILTER::w3tc_minify_js_step():' );
+                self::print_r( $data, 'data' );
+                return $data;
+            } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) {
+            add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
+                error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
+                self::print_r( $data, 'data' );
+                return $data;
+            } );
+        }
+    }
+    public static function set_monitor_minify_autojs_options($name, $value) {
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+        $options[ $name ] = $value;
+        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+    }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
     private static function non_short_circuit_or( ...$conditions ) {
@@ -883,6 +939,35 @@ EOD
             }
         }
         return FALSE;
+    }
+    # print_r() is necessary since the real print_r() uses output buffering and this causes the following error:
+    #     PHP Fatal error:  print_r(): Cannot use output buffering in output buffering display handlers ...
+    # when the real print_r() is used in some W3TC filters e.g. 'w3tc_minify_js_step' which are executed in output
+    # buffering display handlers.
+    public static function print_r( $var, $name = '' ) {
+        static $tabs = '';
+        $tabs .= '    ';
+        $delim = '[';
+        if ( is_object( $var ) ) {
+            $var        = (array) $var;
+            $delim      = '{';
+            $class_name = get_class( $var );
+        }
+        if ( is_array( $var ) ) {
+            error_log( "{$tabs}{$name} = " . ( $delim === '[' ? 'Array' : $class_name ) . '[' . sizeof( $var ) . "] = {$delim}" );
+            foreach ( $var as $index => $value ) {
+                self::print_r( $value, "[$index]" );
+            }
+            error_log( "{$tabs}" . ( $delim === '{' ? '}' : ']' ) );
+        } else {
+            error_log( "{$tabs}{$name} = "
+                . ( is_string( $var ) ? '(String[' . strlen($var) . "]) = \"{$var}\""
+                                            . ( strpos( $var, "\n" ) !== FALSE ? ' = (String[' . strlen($var) . "]) = {$name}" : '' )
+                                      : ( $var === NULL ? 'NULL'
+                                                        : ( is_bool ( $var ) ? ( $var ? 'TRUE' : 'FALSE' )
+                                                                             : $var ) ) ) );
+        }
+        $tabs = substr( $tabs, 0, -4 );
     }
 }
 # Abort execution if the W3 Total Cache plugin is not activated.
