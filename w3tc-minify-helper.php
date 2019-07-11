@@ -99,6 +99,7 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
  * 
  * The following WP-CLI commands will clear the database data of this plugin:
  *
@@ -906,23 +907,49 @@ EOD
         if ( ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) {
                 error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
-                self::print_r( $data, 'data' );
+                self::print_r( $data, '$data' );
+                self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
+                $data['should_replace'] = TRUE;
+                $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
                 return $data;
+                # flush_collected() will be called after this filter is executed.
             } );
         }
         if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
             add_filter( 'w3tc_minify_js_step', function( $data ) {
                 error_log( 'FILTER::w3tc_minify_js_step():' );
-                self::print_r( $data, 'data' );
+                self::print_r( $data, '$data' );
                 return $data;
             } );
         }
         if ( ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) {
             add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
                 error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
-                self::print_r( $data, 'data' );
+                self::print_r( $data, '$data' );
                 return $data;
             } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) {
+            add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js ) {
+                error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
+                self::print_r( $last_script_tag, '$last_script_tag' );
+                self::print_r( $minify_auto_js,  '$minify_auto_js'  );
+                if ( $last_script_tag !== '</head>' ) {
+                    $match = NULL;
+                    if ( !preg_match( '~<script\s+[^<>]*src=["\']?([^"\'> ]+)["\'> ]~is', $last_script_tag, $match ) ) {
+                        $match = NULL;
+                    }
+                    self::print_r( is_null( $match ), 'is_null( $match )' );
+                    if ( is_null( $match ) ) {
+                        if ( property_exists( $minify_auto_js, 'mc_inline_scripts' ) ) {
+                            $minify_auto_js->mc_inline_scripts = [];
+                        }
+                        $minify_auto_js->mc_inline_scripts[] = $last_script_tag;
+                        // return FALSE;   // prevents flush_collected() from executing
+                    }
+                }
+                return TRUE;
+            }, 10, 3 );
         }
     }
     public static function set_monitor_minify_autojs_options($name, $value) {
@@ -949,13 +976,17 @@ EOD
         $tabs .= '    ';
         $delim = '[';
         if ( is_object( $var ) ) {
+            $class_name = get_class( $var );
             $var        = (array) $var;
             $delim      = '{';
-            $class_name = get_class( $var );
         }
         if ( is_array( $var ) ) {
             error_log( "{$tabs}{$name} = " . ( $delim === '[' ? 'Array' : $class_name ) . '[' . sizeof( $var ) . "] = {$delim}" );
             foreach ( $var as $index => $value ) {
+                if ( ! ctype_print( $index ) ) {
+                    # TODO: What are these non printable keys?
+                    $index = '?';
+                }
                 self::print_r( $value, "[$index]" );
             }
             error_log( "{$tabs}" . ( $delim === '{' ? '}' : ']' ) );
@@ -965,7 +996,7 @@ EOD
                                             . ( strpos( $var, "\n" ) !== FALSE ? ' = (String[' . strlen($var) . "]) = {$name}" : '' )
                                       : ( $var === NULL ? 'NULL'
                                                         : ( is_bool ( $var ) ? ( $var ? 'TRUE' : 'FALSE' )
-                                                                             : $var ) ) ) );
+                                                                             : "(Scalar) = {$var}" ) ) ) );
         }
         $tabs = substr( $tabs, 0, -4 );
     }
