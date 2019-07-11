@@ -908,12 +908,15 @@ EOD
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_processed_content_buffer', $buffer );
             } );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) {
-            add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) {
+        $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] );
+        if ( self::$auto_minify || $monitor ) {
+            add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) use ( $monitor ) {
                 # This is an inline <script> element.
-                error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
-                self::print_r( $data, '$data' );
-                self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
+                    self::print_r( $data, '$data' );
+                    self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
+                }
                 if ( self::$auto_minify ) {
                     # Remove this inline <script> element.
                     $data['should_replace'] = TRUE;
@@ -940,11 +943,15 @@ EOD
                 return $data;
             } );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) {
-            add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js ) {
-                error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
-                self::print_r( $last_script_tag, '$last_script_tag' );
-                self::print_r( $minify_auto_js,  '$minify_auto_js'  );
+        $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] );
+        if ( self::$auto_minify || $monitor ) {
+            add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js )
+                    use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
+                    self::print_r( $last_script_tag, '$last_script_tag' );
+                    self::print_r( $minify_auto_js,  '$minify_auto_js'  );
+                }
                 # $last_script_tag  === '' means all scripts have been processed i.e., essentially we are at </body>.
                 if ( $last_script_tag !== '</head>' && $last_script_tag  !== '' ) {
                     # Logic for determining inline <script> elements extracted from Minify_AutoJs::process_script_tag().
@@ -952,10 +959,12 @@ EOD
                     if ( !preg_match( '~<script\s+[^<>]*src=["\']?([^"\'> ]+)["\'> ]~is', $last_script_tag, $match ) ) {
                         $match = NULL;
                     }
-                    self::print_r( is_null( $match ), 'is_null( $match )' );
-                    if ( is_null( $match ) ) {
-                        # No src attribute so this is an inline <script> element.
-                        if ( self::$auto_minify ) {
+                    if ( $monitor ) {
+                        self::print_r( is_null( $match ), 'is_null( $match )' );
+                    }
+                    if ( self::$auto_minify ) {
+                        if ( is_null( $match ) ) {
+                            # No src attribute so this is an inline <script> element.
                             # Collect this inline <script> element.
                             if ( ! property_exists( $minify_auto_js, 'mc_inline_scripts' ) ) {
                                 $minify_auto_js->mc_inline_scripts = [];
@@ -992,10 +1001,10 @@ EOD
         }
         return FALSE;
     }
-    # print_r() is necessary since the real print_r() uses output buffering and this causes the following error:
+    # This print_r() is necessary since the real print_r() uses output buffering and this causes the following error:
     #     PHP Fatal error:  print_r(): Cannot use output buffering in output buffering display handlers ...
     # when the real print_r() is used in some W3TC filters e.g. 'w3tc_minify_js_step' which are executed in output
-    # buffering display handlers.
+    # buffering display handlers. N.B. this print_r() does not have the second boolean argument.
     public static function print_r( $var, $name = '' ) {
         static $tabs = '';
         $tabs .= '    ';
