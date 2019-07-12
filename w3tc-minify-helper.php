@@ -96,10 +96,12 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
  *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_tag_minification", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
+ *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "ENABLED::mc_w3tcm_auto_minify", TRUE );'
@@ -953,19 +955,16 @@ EOD
                 return $data;
             } );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
-            add_filter( 'w3tc_minify_js_step', function( $data ) {
-                error_log( 'FILTER::w3tc_minify_js_step():' );
-                self::print_r( $data, '$data' );
-                return $data;
-            } );
-        }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) {
-            add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
-                error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
-                self::print_r( $data, '$data' );
-                return $data;
-            } );
+        if ( ! empty( $options['FILTER::w3tc_minify_js_do_tag_minification'] ) ) {
+            add_filter( 'w3tc_minify_js_do_tag_minification', function( $do_tag_minification, $script_tag, $file ) {
+                error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
+                self::print_r( $script_tag, '$script_tag' );
+                self::print_r( $file,       '$file' );
+                # All non-inline scripts should pass through this filter so this is a good place to track them.
+                // TODO:
+                // if $do_tag_minification == FALSE then this script is skipped and script order will be affected
+                return $do_tag_minification;
+            }, PHP_INT_MAX, 3 );
         }
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) ) {
@@ -1000,6 +999,24 @@ EOD
                 // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                 return TRUE;
             }, 10, 3 );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
+            add_filter( 'w3tc_minify_js_step', function( $data ) {
+                error_log( 'FILTER::w3tc_minify_js_step():' );
+                self::print_r( $data, '$data' );
+                // This filter provides an alternate way of preventing W3TC's Minify_AutoJs::flush_collected() from executing.
+                // This may be better than using the filter 'w3tc_minify_js_do_flush_collected' as it provides an additional
+                // opportunity for collecting data - $data['files_to_minify'].
+                // $data['files_to_minify'] = [];   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                return $data;
+            } );
+        }
+        if ( ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) {
+            add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
+                error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
+                self::print_r( $data, '$data' );
+                return $data;
+            } );
         }
         $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] );
         if ( self::$auto_minify || $monitor ) {
