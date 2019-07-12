@@ -167,6 +167,7 @@ class MC_Alt_W3TC_Minify {
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
     private static $use_include       = FALSE;
     # The following variables are used to control my monitor of Minify_AutoJs.
+    # $auto_minify === TRUE - replaces the minification of Minify_AutoJs - this should reduce the number of minified files.
     private static $auto_minify       = FALSE;
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
@@ -922,8 +923,8 @@ EOD
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_processed_content_buffer', $buffer );
             } );
         }
-        $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] );
-        if ( self::$auto_minify || $monitor ) {
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) use ( $monitor ) {
                 # This is an inline <script> element.
                 if ( $monitor ) {
@@ -931,13 +932,13 @@ EOD
                     self::print_r( $data, '$data' );
                     self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
                 }
-                if ( self::$auto_minify ) {
+                if ( self::$auto_minify && strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
                     # Collect this inline <script> element.
                     $script_tag_number = $data['script_tag_number'];
-                    # Remove the HTML start and end tags from $data['script_tag_original'].
-                    $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $data['script_tag_original'] );
+                    # Remove the HTML start and end tags from $script_tag.
+                    $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
                     # Save the content of the inline <script> element in a file.
-                    $filename          = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . $script_tag_number . '-' . md5( $content );
+                    $filename          = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . $script_tag_number . '-' . md5( $content ) . '.js';
                     \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
                     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                     # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
@@ -966,8 +967,8 @@ EOD
                 return $data;
             } );
         }
-        $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] );
-        if ( self::$auto_minify || $monitor ) {
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js )
                     use ( $monitor ) {
                 if ( $monitor ) {
