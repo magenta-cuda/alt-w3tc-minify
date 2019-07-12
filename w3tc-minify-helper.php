@@ -100,6 +100,7 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "ENABLED::mc_w3tcm_auto_minify", TRUE );'
  *
@@ -157,15 +158,24 @@ class MC_Alt_W3TC_Minify {
     # skipped file is emitted at its normal location. A "include" batch file is emitted just after the <head> tag,
     # a "include-body" batch file is emitted just after the <body> tag and a "include-footer" batch file is emitted
     # just before the </body> tag.
-    private static $files_to_skip = [
+    private static $files_to_skip   = [
         '/wp-includes/js/admin-bar.js',
         '/wp-includes/js/admin-bar.min.js'
     ];
     # By default processing is skipped. The filter 'template_include' will conditionally enable processing.
-    private static $skip          = TRUE;
+    private static $skip              = TRUE;
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
-    private static $use_include   = FALSE;
-    private static $auto_minify   = FALSE;
+    private static $use_include       = FALSE;
+    # The following variables are used to control my monitor of Minify_AutoJs.
+    private static $auto_minify       = FALSE;
+    private static $mc_inline_scripts = [];
+    # $script_tag_number is the index of the script that Minify_AutoJs is currently processing in the array Minify_AutoJs[].
+    private static $script_tag_number = -1;
+    # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
+    # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
+    private static $files_to_minify   = [];
+    # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
+    private static $minify_filename   = NULL;
     public static function init() {
         # Get additional files to skip.
         $files_to_skip        = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
@@ -892,7 +902,8 @@ EOD
             'cache_id'        => $cache_id
         ];
     }
-    # monitor_minify_autojs() can analyze the operation of Minify_AutoJs.php.
+    # monitor_minify_autojs() can analyze the processing of Minify_AutoJs.php.
+    # monitor_minify_autojs() optionally can replace the minify processing of Minify_AutoJs.php.
     public static function monitor_minify_autojs() {
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return;
@@ -923,10 +934,12 @@ EOD
                     // TODO: 
                     $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
                     // $data['script_tag_new'] = '';
+                    # Remember the $script_tag_number. flush_collected() will be called after this filter is executed and
+                    # flush_collected()'s filter 'w3tc_minify_js_do_flush_collected' will be abused to collect this inline
+                    # <script> element. It will need the $script_tag_number.
+                    self:$script_tag_number = $data['script_tag_number'];
                 }
                 return $data;
-                # flush_collected() will be called after this filter is executed
-                # and flush_collected() will be abused to collect this inline <script> element.
             } );
         }
         if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
@@ -966,14 +979,17 @@ EOD
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
                             # Collect this inline <script> element.
-                            if ( ! property_exists( $minify_auto_js, 'mc_inline_scripts' ) ) {
-                                $minify_auto_js->mc_inline_scripts = [];
-                            }
-                            $minify_auto_js->mc_inline_scripts[] = $last_script_tag;
-                            // TODO: 
-                            // $minify_auto_hs->files_to_minify[]   = 'inline-' . ( function_exists( 'array_key_last' )
-                            //                                            ? array_key_last( $minify_auto_js->mc_inline_scripts )
-                            //                                            : count( $minify_auto_js->mc_inline_scripts ) - 1 );
+                            self::$mc_inline_scripts[self::$script_tag_number] = $last_script_tag;
+                            # Remove the HTML start and end tags from $last_script_tag.
+                            $content = preg_replace( '#</?script\s.*?>#', '', $last_script_tag );
+                            # Save the content of the inline <script> element in a file.
+                            $filename = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . self::$script_tag_number . '-' . md5( $content );
+                            \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
+                            # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
+                            # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
+                            # shadow instead. We will need to correct this later.
+                            self::$files_to_minify[self::$script_tag_number] = $filename;
+                            // TODO:
                             // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                             return TRUE;
                         }
@@ -983,6 +999,25 @@ EOD
                 // TODO: replace W3TC's Minify_AutoJs::flush_collected() with self::flush_collected()
                 // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                 return TRUE;
+            }, 10, 3 );
+        }
+        $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] );
+        if ( self::$auto_minify || $monitor ) {
+            add_filter( 'w3tc_minify_urls_for_minification_to_minify_filename', function( $minify_filename, $files, $type )
+                    use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_urls_for_minification_to_minify_filename():' );
+                    self::print_r( $minify_filename, '$minify_filename' );
+                    self::print_r( $files,           '$files'           );
+                    self::print_r( $type,            '$type'            );
+                    self::print_r( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ), 'backtrace' );
+                }
+                if ( self::$auto_minify ) {
+                    # save $minify_filename - the index to the array $minify_filenames as depending on the final solution we
+                    # may need to adjust that item in the array $minify_filenames.
+                    self::$minify_filename = $minify_filename;
+                }
+                return $minify_filename;
             }, 10, 3 );
         }
     }
