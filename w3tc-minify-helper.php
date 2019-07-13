@@ -945,24 +945,50 @@ EOD
                     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                     # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
                     # shadow instead. We will need to correct this later.
+                    if ( $script_tag_number !== count( self::$files_to_minify ) ) {
+                        error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
+                    }
                     self::$files_to_minify[$script_tag_number] = $filename;
                     # Remove this inline <script> element.
                     $data['should_replace'] = TRUE;
                     // TODO: 
                     $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
                     // $data['script_tag_new'] = '';
+                    if ( $monitor ) {
+                        error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
+                        self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                    }
                 }
                 return $data;
             } );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_do_tag_minification'] ) ) {
-            add_filter( 'w3tc_minify_js_do_tag_minification', function( $do_tag_minification, $script_tag, $file ) {
-                error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
-                self::print_r( $script_tag, '$script_tag' );
-                self::print_r( $file,       '$file' );
-                # All non-inline scripts should pass through this filter so this is a good place to track them.
-                // TODO:
-                // if $do_tag_minification == FALSE then this script is skipped and script order will be affected
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_tag_minification'] ) ) ) {
+            add_filter( 'w3tc_minify_js_do_tag_minification', function( $do_tag_minification, $script_tag, $file )
+                    use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
+                    self::print_r( $script_tag, '$script_tag' );
+                    self::print_r( $file,       '$file' );
+                }
+                if ( self::$auto_minify ) {
+                    # All non-inline scripts should pass through this filter so this is a good place to track them.
+                    if ( $do_tag_minification ) {
+                        # Update the $files_to_minify shadow.
+                        self::$files_to_minify[] = $file;
+                    } else {
+                        # Update the $files_to_minify shadow with NULL to keep synchronization.
+                        self::$files_to_minify[] = NULL;
+                        // TODO:
+                        // if $do_tag_minification == FALSE then this script is skipped and script order will be affected
+                        error_log( "MC_Alt_W3TC_Minify Error: {$filename} skipped "
+                                   . '- This will affect the script order which is not currently handled.' );
+                    }
+                    if ( $monitor ) {
+                        error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
+                        self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                    }
+                }
                 return $do_tag_minification;
             }, PHP_INT_MAX, 3 );
         }
@@ -1000,14 +1026,25 @@ EOD
                 return TRUE;
             }, 10, 3 );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) {
-            add_filter( 'w3tc_minify_js_step', function( $data ) {
-                error_log( 'FILTER::w3tc_minify_js_step():' );
-                self::print_r( $data, '$data' );
-                // This filter provides an alternate way of preventing W3TC's Minify_AutoJs::flush_collected() from executing.
-                // This may be better than using the filter 'w3tc_minify_js_do_flush_collected' as it provides an additional
-                // opportunity for collecting data - $data['files_to_minify'].
-                // $data['files_to_minify'] = [];   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+        if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) ) {
+            add_filter( 'w3tc_minify_js_step', function( $data ) use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_step():' );
+                    self::print_r( $data, '$data' );
+                }
+                if ( self::$auto_minify ) {
+                    // This filter provides an alternate way of preventing W3TC's Minify_AutoJs::flush_collected() from executing.
+                    // This may be better than using the filter 'w3tc_minify_js_do_flush_collected' as it provides an additional
+                    // opportunity for collecting data - $data['files_to_minify'].
+                    // $data['files_to_minify'] = [];   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                    if ( array_diff( $data['files_to_minify'], self::$files_to_minify ) ) {
+                        error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[1]' );
+                    }
+                    if ( $monitor ) {
+                        error_log( 'FILTER::w3tc_minify_js_step():' );
+                        self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                    }
+                }
                 return $data;
             } );
         }
