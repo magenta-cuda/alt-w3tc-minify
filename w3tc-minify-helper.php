@@ -178,10 +178,14 @@ class MC_Alt_W3TC_Minify {
     private static $minify_filename   = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
-            \W3TC\Util_File::mkdir( self::OUTPUT_DIR );
+            mkdir( self::OUTPUT_DIR, 0755 );
             if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
-                error_log( 'MC_Alt_W3TC_Minify: Cannot create directory ' . self::OUTPUT_DIR );
+                error_log( 'MC_Alt_W3TC_Minify: Cannot create directory "' . self::OUTPUT_DIR . '", getmypid()=' . getmypid() );
             }
+        }
+        if ( self::monitor_minify_autojs() ) {
+            # Auto minify is enabled so manual minify is disabled.
+            return;
         }
         # Get additional files to skip.
         $files_to_skip        = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
@@ -397,7 +401,6 @@ EOD
             }
         } );
         self::delete_old_miscellaneous( 86400 * 10 );
-        self::monitor_minify_autojs();
     }   # public static function init() {
     public static function admin_init() {
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
@@ -912,7 +915,7 @@ EOD
     # monitor_minify_autojs() optionally can replace the minify processing of Minify_AutoJs.php.
     public static function monitor_minify_autojs() {
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
-            return;
+            return FALSE;
         }
         self::$auto_minify = ! empty( $options['ENABLED::mc_w3tcm_auto_minify'] );
         if ( ! empty( $options['FILTER::w3tc_process_content'] ) ) {
@@ -1063,7 +1066,8 @@ EOD
             } );
         }
         $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] );
-        if ( self::$auto_minify || $monitor ) {
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] ) ) ) {
             add_filter( 'w3tc_minify_urls_for_minification_to_minify_filename', function( $minify_filename, $files, $type )
                     use ( $monitor ) {
                 if ( $monitor ) {
@@ -1081,7 +1085,8 @@ EOD
                 return $minify_filename;
             }, 10, 3 );
         }
-    }
+        return self::$auto_minify;
+    }   # public static function monitor_minify_autojs() {
     public static function set_monitor_minify_autojs_options($name, $value) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
         $options[ $name ] = $value;
