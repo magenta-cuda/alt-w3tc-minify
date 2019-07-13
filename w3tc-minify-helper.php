@@ -104,7 +104,7 @@
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
  *
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "ENABLED::mc_w3tcm_auto_minify", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( MC_Alt_W3TC_Minify::AUTO_MINIFY_OPTION, TRUE );'
  *
  * The following WP-CLI commands will clear the database data of this plugin:
  *
@@ -135,6 +135,8 @@ class MC_Alt_W3TC_Minify {
     const TEMPLATE_WARNINGS            = 'TEMPLATE-WARNINGS';
     const DO_NOT_MINIFY                = 'DO-NOT-MINIFY';
     const OVERRIDE_DO_NOT_MINIFY       = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
+    const AUTO_MINIFY_OPTION           = 'ENABLED::mc_w3tcm_auto_minify';
+    const AJAX_TOGGLE_AUTO_MINIFY      = 'mc_alt_w3tc_toggle_auto_minify';
     const AJAX_RESET                   = 'mc_alt_w3tc_minify_reset';
     const AJAX_SET_TEMPLATE_SKIP       = 'mc_alt_w3tc_minify_set_template_skip';
     const AJAX_GET_THEME_MAP           = 'mc_alt_w3tc_minify_get_theme_map';
@@ -413,6 +415,13 @@ EOD
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
         # Rather some non standard plugin action links are provided.
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
+            $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+            $enabled = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
+            array_push( $links,
+                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_TOGGLE_AUTO_MINIFY
+                    . '&_wpnonce=' . wp_create_nonce( self::AJAX_TOGGLE_AUTO_MINIFY )
+                    . '" title="Toggle Auto Minify Mode.">Auto Minify:' . ( $enabled ? 'On' : 'Off' ) . '</a>'
+            );
             if ( file_exists( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME ) ) {
                 # Add the download link for the generated conf file after the "Deactivate" link.
                 array_push( $links,
@@ -472,6 +481,18 @@ EOD
                 set_transient( self::TRANSIENT_NAME, $notices );
             }
         }
+        # AJAX request to toggle the auto minify mode.
+        # N.B. This AJAX request was not sent by XHR but as a normal HTTP request
+        # and will require special handling as a page needs to be returned.
+        add_action( 'wp_ajax_' . self::AJAX_TOGGLE_AUTO_MINIFY, function() {
+            check_ajax_referer( self::AJAX_TOGGLE_AUTO_MINIFY );
+            $enabled = self::toggle_auto_minify_option();
+            self::add_notice( self::PLUGIN_NAME .': Auto Minify is ' . ( $enabled ? 'on' : 'off' ) );
+            # Since this AJAX request was not invoked as XHR but as a normal HTTP request
+            # we need to redirect to return a page otherwise the browser will not have content.
+            wp_redirect( admin_url( 'plugins.php' ) );
+            exit();
+        } );
         # Let the user remove everything created by this plugin by AJAX request.
         # N.B. This AJAX request was not sent by XHR but as a normal HTTP request
         # and will require special handling as a page needs to be returned.
@@ -924,7 +945,7 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return FALSE;
         }
-        self::$auto_minify = ! empty( $options['ENABLED::mc_w3tcm_auto_minify'] );
+        self::$auto_minify = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
         if ( ! empty( $options['FILTER::w3tc_process_content'] ) ) {
             add_filter( 'w3tc_process_content', function( $buffer ) {
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
@@ -961,7 +982,7 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        self::$files_to_minify[$script_tag_number] = $filename;
+                        self::$files_to_minify[$script_tag_number] = substr( $filename, strlen( WP_CONTENT_DIR ) + 1 );
                         # Remove this inline <script> element.
                         $data['should_replace'] = TRUE;
                         // TODO: 
@@ -1118,6 +1139,13 @@ EOD
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
         $options[ $name ] = $value;
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+    }
+    public static function toggle_auto_minify_option() {
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+        $option  =& $options[ self::AUTO_MINIFY_OPTION ];
+        $option  = ! $option;
+        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        return $option;
     }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
