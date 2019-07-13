@@ -143,6 +143,11 @@ class MC_Alt_W3TC_Minify {
     const AJAX_GET_THE_DIFF            = 'mc_alt_w3tc_minify_get_the_diff';
     const AJAX_GET_DATABASE            = 'mc_alt_w3tc_minify_get_database';
     const AJAX_GET_MINIFY_MAP          = 'mc_alt_w3tc_minify_get_w3tc_minify_map';
+    const UNKNOWN_SCRIPT_TAG           = 'unknown';
+    const INLINE_SCRIPT                = 'inline';
+    const SKIPPED_SCRIPT               = 'skipped';
+    const HEAD_END                     = 'head end';
+    const AFTER_LAST_SCRIPT            = 'after last';
     private static $theme              = NULL;   # MD5 of the current theme
     private static $basename           = NULL;   # the basename of the current template in the current theme
     private static $the_data           = NULL;   # the database of this plugin
@@ -160,22 +165,24 @@ class MC_Alt_W3TC_Minify {
     # skipped file is emitted at its normal location. A "include" batch file is emitted just after the <head> tag,
     # a "include-body" batch file is emitted just after the <body> tag and a "include-footer" batch file is emitted
     # just before the </body> tag.
-    private static $files_to_skip   = [
+    private static $files_to_skip      = [
         '/wp-includes/js/admin-bar.js',
         '/wp-includes/js/admin-bar.min.js'
     ];
     # By default processing is skipped. The filter 'template_include' will conditionally enable processing.
-    private static $skip              = TRUE;
+    private static $skip               = TRUE;
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
-    private static $use_include       = FALSE;
+    private static $use_include        = FALSE;
     # The following variables are used to control my monitor of Minify_AutoJs.
     # $auto_minify === TRUE - replaces the minification of Minify_AutoJs - this should reduce the number of minified files.
-    private static $auto_minify       = FALSE;
+    private static $auto_minify        = FALSE;
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
-    private static $files_to_minify   = [];
+    private static $files_to_minify    = [];
+    # $last_script_tag_is is the $last_script_tag seen by the filter 'w3tc_minify_js_do_flush_collected'
+    private static $last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
-    private static $minify_filename   = NULL;
+    private static $minify_filename    = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
             mkdir( self::OUTPUT_DIR, 0755 );
@@ -1011,20 +1018,37 @@ EOD
                     self::print_r( $last_script_tag, '$last_script_tag' );
                     self::print_r( $minify_auto_js,  '$minify_auto_js'  );
                 }
-                # $last_script_tag  === '' means all scripts have been processed i.e., essentially we are at </body>.
-                if ( $last_script_tag !== '</head>' && $last_script_tag  !== '' ) {
-                    # Logic for determining inline <script> elements extracted from Minify_AutoJs::process_script_tag().
-                    $match = NULL;
-                    if ( !preg_match( '~<script\s+[^<>]*src=["\']?([^"\'> ]+)["\'> ]~is', $last_script_tag, $match ) ) {
+                if ( self::$auto_minify ) {
+                    # $last_script_tag  === '' means all scripts have been processed i.e., essentially we are at </body>.
+                    if ( ( $not_head_end_tag = strpos( $last_script_tag, '</head>' ) === FALSE ) && $last_script_tag  !== '' ) {
+                        # Logic for determining inline <script> elements extracted from Minify_AutoJs::process_script_tag().
                         $match = NULL;
-                    }
-                    if ( $monitor ) {
-                        self::print_r( is_null( $match ), 'is_null( $match )' );
-                    }
-                    if ( self::$auto_minify ) {
+                        if ( !preg_match( '~<script\s+[^<>]*src=["\']?([^"\'> ]+)["\'> ]~is', $last_script_tag, $match ) ) {
+                            $match = NULL;
+                        }
+                        if ( $monitor ) {
+                            self::print_r( is_null( $match ), 'is_null( $match )' );
+                        }
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
-                            // TODO:
+                            self::$last_script_tag_is = self::INLINE_SCRIPT;
+                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                            return TRUE;
+                        } else {
+                            # This is a skipped <script> element.
+                            self::$last_script_tag_is = self::SKIPPED_SCRIPT;
+                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                            return TRUE;
+                        }
+                    } else {
+                        if ( ! $not_head_end_tag ) {
+                            # This is the </head> element.
+                            self::$last_script_tag_is = self::HEAD_END;
+                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                            return TRUE;
+                        } else {
+                            # We are just after the last <script> element.
+                            self::$last_script_tag_is = self::AFTER_LAST_SCRIPT;
                             // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                             return TRUE;
                         }
@@ -1052,8 +1076,12 @@ EOD
                     }
                     if ( $monitor ) {
                         error_log( 'FILTER::w3tc_minify_js_step():' );
+                        self::print_r( self::$last_script_tag_is , 'self::$last_script_tag_is' );
                         self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
                     }
+                    // TODO:
+                    // $data['files_to_minify'] =
+                    self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
                 }
                 return $data;
             } );
@@ -1065,7 +1093,6 @@ EOD
                 return $data;
             } );
         }
-        $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] );
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_urls_for_minification_to_minify_filename'] ) ) ) {
             add_filter( 'w3tc_minify_urls_for_minification_to_minify_filename', function( $minify_filename, $files, $type )
