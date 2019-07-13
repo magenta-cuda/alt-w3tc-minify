@@ -945,9 +945,9 @@ EOD
                     self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
                 }
                 if ( self::$auto_minify ) {
+                    $script_tag_number = $data['script_tag_number'];
                     if ( strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
                         # Collect this inline <script> element.
-                        $script_tag_number = $data['script_tag_number'];
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
                         # Save the content of the inline <script> element in a file.
