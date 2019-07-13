@@ -934,29 +934,36 @@ EOD
                     self::print_r( $data, '$data' );
                     self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
                 }
-                if ( self::$auto_minify && strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
-                    # Collect this inline <script> element.
-                    $script_tag_number = $data['script_tag_number'];
-                    # Remove the HTML start and end tags from $script_tag.
-                    $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
-                    # Save the content of the inline <script> element in a file.
-                    $filename          = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . $script_tag_number . '-' . md5( $content ) . '.js';
-                    \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
-                    # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
-                    # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
-                    # shadow instead. We will need to correct this later.
-                    if ( $script_tag_number !== count( self::$files_to_minify ) ) {
-                        error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
-                    }
-                    self::$files_to_minify[$script_tag_number] = $filename;
-                    # Remove this inline <script> element.
-                    $data['should_replace'] = TRUE;
-                    // TODO: 
-                    $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
-                    // $data['script_tag_new'] = '';
-                    if ( $monitor ) {
-                        error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
-                        self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                if ( self::$auto_minify ) {
+                    if ( strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
+                        # Collect this inline <script> element.
+                        $script_tag_number = $data['script_tag_number'];
+                        # Remove the HTML start and end tags from $script_tag.
+                        $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
+                        # Save the content of the inline <script> element in a file.
+                        $filename          = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . $script_tag_number . '-' . md5( $content ) . '.js';
+                        \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
+                        # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
+                        # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
+                        # shadow instead. We will need to correct this later.
+                        if ( $script_tag_number !== count( self::$files_to_minify ) ) {
+                            error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
+                            error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
+                            error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
+                        }
+                        self::$files_to_minify[$script_tag_number] = $filename;
+                        # Remove this inline <script> element.
+                        $data['should_replace'] = TRUE;
+                        // TODO: 
+                        $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
+                        // $data['script_tag_new'] = '';
+                        if ( $monitor ) {
+                            error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
+                            self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                        }
+                    } else {
+                        # This is a </head>. Update the $files_to_minify shadow with NULL to keep synchronization.
+                        self::$files_to_minify[$script_tag_number] = NULL;
                     }
                 }
                 return $data;
