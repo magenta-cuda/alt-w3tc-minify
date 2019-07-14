@@ -130,6 +130,7 @@ class MC_Alt_W3TC_Minify {
     const OPTION_MONITOR_MINIFY_AUTOJS = 'mc_alt_w3tc_minify_monitor_minify_autojs';
     const TRANSIENT_NAME               = 'mc_alt_w3tc_minify';
     const OUTPUT_DIR                   = WP_CONTENT_DIR . '/mc-w3tcm-output';
+    const MINIFY_FILENAME_PREFIX       = self::OUTPUT_DIR . '/mc-w3tcm-inline-';
     const CONF_FILE_NAME               = 'mc_alt_w3tc_minify.json';
     const NOTICE_ID                    = 'mc_alt_w3tc_minify_notice_id';
     const TEMPLATE_WARNINGS            = 'TEMPLATE-WARNINGS';
@@ -665,6 +666,9 @@ EOD
                 do_action( "wp_ajax_{$ajax_action}" );
             } );
         }
+        # Purge my auto minify cache when W3TC purges its cache.
+        error_log( "add_action( 'w3tc_flush_minify', [ 'MC_Alt_W3TC_Minify', 'purge_auto_minify_cache' ] );" );
+        add_action( 'w3tc_flush_minify', 'MC_Alt_W3TC_Minify::purge_auto_minify_cache' );
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
             self::reset();
@@ -983,7 +987,7 @@ EOD
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
                         # Save the content of the inline <script> element in a file.
-                        $filename          = self::OUTPUT_DIR . '/' . 'mc-w3tcm-inline-' . $script_tag_number . '-' . md5( $content ) . '.js';
+                        $filename          = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
                         \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
                         # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                         # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
@@ -1146,6 +1150,14 @@ EOD
         }
         return self::$auto_minify;
     }   # public static function monitor_minify_autojs() {
+    public static function purge_auto_minify_cache() {
+        error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():' );
+        # $filename = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
+        foreach ( glob( self::MINIFY_FILENAME_PREFIX . '*.js' ) as $filename ) {
+            error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():$filename = "' . $filename . '"' );
+            @unlink( $filename );
+        }
+    }
     public static function set_monitor_minify_autojs_options($name, $value) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
         $options[ $name ] = $value;
