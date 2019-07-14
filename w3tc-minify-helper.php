@@ -667,7 +667,6 @@ EOD
             } );
         }
         # Purge my auto minify cache when W3TC purges its cache.
-        error_log( "add_action( 'w3tc_flush_minify', [ 'MC_Alt_W3TC_Minify', 'purge_auto_minify_cache' ] );" );
         add_action( 'w3tc_flush_minify', 'MC_Alt_W3TC_Minify::purge_auto_minify_cache' );
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
@@ -997,12 +996,11 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        self::$files_to_minify[$script_tag_number] = substr( $filename, strlen( WP_CONTENT_DIR ) + 1 );
+                        self::$files_to_minify[$script_tag_number] = substr( $filename, strlen( ABSPATH ) );
                         # Remove this inline <script> element.
                         $data['should_replace'] = TRUE;
-                        // TODO: 
-                        $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->" . $data['script_tag_original'] . "<!-- mc_w3tcm: inline end -->\n";
-                        // $data['script_tag_new'] = '';
+                        // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
+                        $data['script_tag_new'] = "<!-- mc_w3tcm: inline -->\n";
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
                             self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
@@ -1021,8 +1019,9 @@ EOD
                     use ( $monitor ) {
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
-                    self::print_r( $script_tag, '$script_tag' );
-                    self::print_r( $file,       '$file' );
+                    self::print_r( $do_tag_minification, '$do_tag_minification' );
+                    self::print_r( $script_tag,          '$script_tag'          );
+                    self::print_r( $file,                '$file'                );
                 }
                 if ( self::$auto_minify ) {
                     # All non-inline scripts should pass through this filter so this is a good place to track them.
@@ -1032,10 +1031,8 @@ EOD
                     } else {
                         # Update the $files_to_minify shadow with NULL to keep synchronization.
                         self::$files_to_minify[] = NULL;
-                        // TODO:
-                        // if $do_tag_minification == FALSE then this script is skipped and script order will be affected
-                        error_log( "MC_Alt_W3TC_Minify Error: {$filename} skipped "
-                                   . '- This will affect the script order which is not currently handled.' );
+                        #if $do_tag_minification == FALSE then this script is skipped
+                        error_log( "MC_Alt_W3TC_Minify Error: {$filename} skipped " );
                     }
                     if ( $monitor ) {
                         error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
@@ -1044,6 +1041,20 @@ EOD
                 }
                 return $do_tag_minification;
             }, PHP_INT_MAX, 3 );
+        }
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_excluded_tag_script_minification'] ) ) ) {
+            add_filter( 'w3tc_minify_js_do_excluded_tag_script_minification', function( $data ) use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
+                    self::print_r( $data, '$data' );
+                }
+                if ( self::$auto_minify ) {
+                    $data['should_replace'] = TRUE;
+                    $data['script_tag_new'] = "<!-- mc_w3tcm -->{$data['script_tag_original']}<!-- mc_w3tcm-->";
+                }
+                return $data;
+            } );
         }
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) ) {
@@ -1068,8 +1079,8 @@ EOD
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
                             self::$last_script_tag_is = self::INLINE_SCRIPT;
-                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
-                            return TRUE;
+                            return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                            // return TRUE;
                         } else {
                             # This is a skipped <script> element.
                             self::$last_script_tag_is = self::SKIPPED_SCRIPT;
@@ -1090,10 +1101,7 @@ EOD
                         }
                     }
                 }
-                # We are at '</head>' or at '</body>' so flush collected <script> elements.
-                // TODO: replace W3TC's Minify_AutoJs::flush_collected() with self::flush_collected()
-                // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
-                return TRUE;
+                return $do_flush_collected;
             }, 10, 3 );
         }
         if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) ) {
@@ -1113,11 +1121,20 @@ EOD
                     if ( $monitor ) {
                         error_log( 'FILTER::w3tc_minify_js_step():' );
                         self::print_r( self::$last_script_tag_is , 'self::$last_script_tag_is' );
-                        self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
+                        self::print_r( self::$files_to_minify,     'self::$files_to_minify'    );
                     }
-                    // TODO:
-                    // $data['files_to_minify'] =
-                    self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
+                    switch ( self::$last_script_tag_is ) {
+                    case self::INLINE_SCRIPT:
+                        $data['files_to_minify'] = [];
+                        break;
+                    case self::SKIPPED_SCRIPT:
+                    case self::HEAD_END:
+                    case self::AFTER_LAST_SCRIPT:
+                        $data['files_to_minify'] = array_filter( self::$files_to_minify );
+                        self::$files_to_minify   = [];
+                        break;
+                    }
+                   self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
                 }
                 return $data;
             } );
@@ -1151,7 +1168,8 @@ EOD
         return self::$auto_minify;
     }   # public static function monitor_minify_autojs() {
     public static function purge_auto_minify_cache() {
-        error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():' );
+        # Since this only removes the disk files it must be called as a 'w3tc_flush_minify' action
+        # as W3TC's code is needed to remove the corresponding map entries.
         # $filename = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
         foreach ( glob( self::MINIFY_FILENAME_PREFIX . '*.js' ) as $filename ) {
             error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():$filename = "' . $filename . '"' );
