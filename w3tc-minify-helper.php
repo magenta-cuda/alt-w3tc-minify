@@ -187,7 +187,7 @@ class MC_Alt_W3TC_Minify {
     private static $minify_filename    = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
-            mkdir( self::OUTPUT_DIR, 0755 );
+            @mkdir( self::OUTPUT_DIR, 0755 );
             if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
                 error_log( 'MC_Alt_W3TC_Minify: Cannot create directory "' . self::OUTPUT_DIR . '", getmypid()=' . getmypid() );
             }
@@ -417,30 +417,41 @@ EOD
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
             $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
             $enabled = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
+            # Link to toggle the auto minify mode.
             array_push( $links,
                 '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_TOGGLE_AUTO_MINIFY
-                    . '&_wpnonce=' . wp_create_nonce( self::AJAX_TOGGLE_AUTO_MINIFY )
-                    . '" title="Toggle Auto Minify Mode.">Auto Minify:' . ( $enabled ? 'On' : 'Off' ) . '</a>'
+                    . '&_wpnonce=' . wp_create_nonce( self::AJAX_TOGGLE_AUTO_MINIFY ) . '" title="Toggle Auto Minify Mode.">'
+                    . 'Auto Minify:' . ( $enabled ? '<span style="color:green;">On</span>' : '<span style="color:red;">Off</span>' ) .
+                '</a>'
             );
-            if ( file_exists( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME ) ) {
-                # Add the download link for the generated conf file after the "Deactivate" link.
+            if ( ! $enabled ) {
+                # Only show manual mode links if auto minify mode is off.
+                if ( file_exists( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME ) ) {
+                    # Add the download link for the generated conf file after the "Deactivate" link.
+                    array_push( $links,
+                        '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME
+                            . '">Download New W3TC Conf File</a>'
+                    );
+                }
+                # Let the user remove everything created by this plugin by AJAX request.
+                # This AJAX request is sent to admin-ajax.php not as XHR but as a normal HTTP request
+                # and will require special handling in the AJAX handler to return a HTML page.
                 array_push( $links,
-                    '<a href="' . WP_CONTENT_URL . '/w3tc-config/' . self::CONF_FILE_NAME
-                        . '">Download New W3TC Conf File</a>'
+                    '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
+                        . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the manual mode database.">Reset</a>'
+                );
+                # Another abusive use of AJAX (sent as a normal HTTP request not as XHR) to dump the log in a web page.
+                array_push( $links,
+                    '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_LOG
+                        . '" title="Dump the manual mode actions on templates in themes." target="_blank">Dump Log</a>'
+                );
+            } else {
+                # Another abusive use of AJAX (sent as a normal HTTP request not as XHR) to dump W3TC's minify map.
+                array_push( $links,
+                    '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_MAP
+                        . '" title="Dump W3TC\'s minify map." target="_blank">Dump Minify Map</a>'
                 );
             }
-            # Let the user remove everything created by this plugin by AJAX request.
-            # This AJAX request is sent to admin-ajax.php not as XHR but as a normal HTTP request
-            # and will require special handling in the AJAX handler to return a HTML page.
-            array_push( $links,
-                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_RESET
-                    . '&_wpnonce=' . wp_create_nonce( self::AJAX_RESET ) . '" title="Clear the database.">Reset</a>'
-            );
-            # Another abusive use of AJAX (sent as a normal HTTP request not as XHR) to dump the log in a web page.
-            array_push( $links,
-                '<a href="' . admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_LOG
-                    . '" title="Dump actions on templates in themes." target="_blank">Dump Log</a>'
-            );
             return $links;
         } );
         # If the minify JavaScript configuration has changed display an admin notice.
@@ -487,7 +498,7 @@ EOD
         add_action( 'wp_ajax_' . self::AJAX_TOGGLE_AUTO_MINIFY, function() {
             check_ajax_referer( self::AJAX_TOGGLE_AUTO_MINIFY );
             $enabled = self::toggle_auto_minify_option();
-            self::add_notice( self::PLUGIN_NAME .': Auto Minify is ' . ( $enabled ? 'on' : 'off' ) );
+            self::add_notice( self::PLUGIN_NAME .': Auto Minify is ' . ( $enabled ? 'on.' : 'off.' ) );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
             # we need to redirect to return a page otherwise the browser will not have content.
             wp_redirect( admin_url( 'plugins.php' ) );
