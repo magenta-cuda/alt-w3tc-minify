@@ -1066,7 +1066,7 @@ EOD
                     self::print_r( $minify_auto_js,  '$minify_auto_js'  );
                 }
                 if ( self::$auto_minify ) {
-                    # $last_script_tag  === '' means all scripts have been processed i.e., essentially we are at </body>.
+                    # $last_script_tag  === '' means all scripts have been processed.
                     if ( ( $not_head_end_tag = strpos( $last_script_tag, '</head>' ) === FALSE ) && $last_script_tag  !== '' ) {
                         # Logic for determining inline <script> elements extracted from Minify_AutoJs::process_script_tag().
                         $match = NULL;
@@ -1080,23 +1080,19 @@ EOD
                             # No src attribute so this is an inline <script> element.
                             self::$last_script_tag_is = self::INLINE_SCRIPT;
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
-                            // return TRUE;
                         } else {
                             # This is a skipped <script> element.
                             self::$last_script_tag_is = self::SKIPPED_SCRIPT;
-                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                             return TRUE;
                         }
                     } else {
                         if ( ! $not_head_end_tag ) {
                             # This is the </head> element.
                             self::$last_script_tag_is = self::HEAD_END;
-                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                             return TRUE;
                         } else {
                             # We are just after the last <script> element.
                             self::$last_script_tag_is = self::AFTER_LAST_SCRIPT;
-                            // return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                             return TRUE;
                         }
                     }
@@ -1124,14 +1120,17 @@ EOD
                         self::print_r( self::$files_to_minify,     'self::$files_to_minify'    );
                     }
                     switch ( self::$last_script_tag_is ) {
-                    case self::INLINE_SCRIPT:
-                        $data['files_to_minify'] = [];
-                        break;
+                    # case self::INLINE_SCRIPT: should not happen because filter 'w3tc_minify_js_do_flush_collected' prevents it.
+                    # case self::INLINE_SCRIPT:
+                    #     $data['files_to_minify'] = [];
+                    #     break;
                     case self::SKIPPED_SCRIPT:
                     case self::HEAD_END:
                     case self::AFTER_LAST_SCRIPT:
-                        $data['files_to_minify'] = array_filter( self::$files_to_minify );
-                        self::$files_to_minify   = [];
+                        # TODO: If the <body> section contains only inline <script> elements then this will not be called.
+                        #       A solution may be to insert a dummy non-inline <script> into the <body> section.
+                        $data['files_to_minify'] = array_merge( array_filter( self::$files_to_minify ) );
+                        self::$files_to_minify   = array_map( function( $v ) { return NULL; }, self::$files_to_minify );
                         break;
                     }
                    self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
