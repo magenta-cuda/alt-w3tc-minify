@@ -17,6 +17,14 @@ admin page. This link toggles the plugin's minifier "Off" and "On".
 
 ![Screenshot](https://raw.githubusercontent.com/magenta-cuda/alt-w3tc-minify/master/assets/plugin_entry_screenshot.png)
 
+If the page contains conditional HTML comments with <script> elements, e.g.
+
+    <!--[if lte IE 8]> <script>...</script> <![endif]-->
+
+then there may be a problem caused by incorrect order of <script> element execution as these
+<script> elements are emitted in their original location and the minified batch files may have
+moved relative to that location. I am still trying to find a workaound for this.
+
 # The original README
 
 The W3 Total Cache auto minify mode does not work on my web site. The problem
