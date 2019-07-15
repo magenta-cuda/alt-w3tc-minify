@@ -11,6 +11,12 @@ also batches the inline scripts which W3TC does not do - forcing W3TC to stop
 batching and emit the minified file of the current batched file everytime it 
 encounters a inline JavaScript element in order to preserve the script order.
 
+To replace W3TC's "auto mode" JavaScript minifier with this plugin's JavaScript minifier
+just click on the "Auto Minify:Xxx" link in this plugin's entry in the "Installed Plugins"
+admin page. This link toggles the plugin's minifier "Off" and "On".
+
+![Screenshot](https://raw.githubusercontent.com/magenta-cuda/alt-w3tc-minify/master/assets/plugin_entry_screenshot.png)
+
 # The original README
 
 The W3 Total Cache auto minify mode does not work on my web site. The problem
