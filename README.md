@@ -21,9 +21,14 @@ If the page contains conditional HTML comments with <script> elements, e.g.
 
     <!--[if lte IE 8]> <script>...</script> <![endif]-->
 
-then there may be a problem caused by incorrect order of <script> element execution as these
-script elements are emitted in their original location and the minified batch files may have
+then there may be a problem caused by incorrect order of <script> element execution as these <script>
+elements are emitted in their original location and the minified batch files may have
 moved relative to that location. I am still trying to find a workaound for this.
+
+*W3TC 0.9.7.5 removes all HTML comments before processing <script> elements - see Minify_AutoJs::execute().
+Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
+also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
+order execution. This in fact is what is making solving this problem difficult.*
 
 # The original README
 

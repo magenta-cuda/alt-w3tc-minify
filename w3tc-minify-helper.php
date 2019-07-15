@@ -981,6 +981,10 @@ EOD
                     if ( $matches = self::check_for_conditional_html( $buffer ) ) {
                         // TODO: If the conditional html has a <script> element then this may change the order of <script> elements execution.
                         //       However, it seems the included JavaScript is often immune to changes in script order execution.
+                        # W3TC removes all HTML comments before processing <script> elements - see Minify_AutoJs::execute().
+                        # Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
+                        # also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
+                        # order execution.
                         foreach ( $matches as $match ) {
                             error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
                             error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
