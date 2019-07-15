@@ -80,7 +80,8 @@
  * page has been done for each of your templates. The last command dumps W3TC's
  * map of minified files to their component files.
  *
- * AJAX actions have been abused to return complete HTML pages so you can dump this plugin's "manual mode" database, logs and notes by:
+ * AJAX actions have been abused to return complete HTML pages so you can dump this plugin's "manual mode" database,
+ * logs and notes by:
  *   
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_log
  *     http://localhost/wp-admin/admin-ajax.php?action=mc_alt_w3tc_minify_get_database
@@ -973,14 +974,30 @@ EOD
             return FALSE;
         }
         self::$auto_minify = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
-        if ( ! empty( $options['FILTER::w3tc_process_content'] ) ) {
-            add_filter( 'w3tc_process_content', function( $buffer ) {
-                \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_process_content'] ) ) ) {
+            add_filter( 'w3tc_process_content', function( $buffer ) use ( $monitor ) {
+                if ( self::$auto_minify ) {
+                    if ( $matches = self::check_for_conditional_html( $buffer ) ) {
+                        // TODO: If the conditional html has a <script> element then this may change the order of <script> elements execution.
+                        //       However, it seems the included JavaScript is often immune to changes in script order execution.
+                        foreach ( $matches as $match ) {
+                            error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
+                            error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
+                            error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] );
+                        }
+                    }
+                }
+                if ( $monitor ) {
+                    \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
+                }
+                return $buffer;
             } );
         }
         if ( ! empty( $options['FILTER::w3tc_processed_content'] ) ) {
             add_filter( 'w3tc_processed_content', function( $buffer ) {
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_processed_content_buffer', $buffer );
+                return $buffer;
             } );
         }
         if ( self::non_short_circuit_or( self::$auto_minify,
@@ -1046,7 +1063,9 @@ EOD
                         # Update the $files_to_minify shadow with NULL to keep synchronization.
                         self::$files_to_minify[] = NULL;
                         #if $do_tag_minification == FALSE then this script is skipped
-                        error_log( "MC_Alt_W3TC_Minify Error: {$filename} skipped " );
+                        if ( $monitor ) {
+                            error_log( "FILTER::w3tc_minify_js_do_tag_minification():\"{$filename}\" skipped " );
+                        }
                     }
                     if ( $monitor ) {
                         error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
@@ -1184,7 +1203,7 @@ EOD
         # as W3TC's code is needed to remove the corresponding map entries.
         # $filename = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
         foreach ( glob( self::MINIFY_FILENAME_PREFIX . '*.js' ) as $filename ) {
-            error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():$filename = "' . $filename . '"' );
+            # error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():$filename = "' . $filename . '"' );
             @unlink( $filename );
         }
     }
@@ -1199,6 +1218,14 @@ EOD
         $option  = ! $option;
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
         return $option;
+    }
+    private static function check_for_conditional_html( $buffer ) {
+        if ( preg_match_all( '#<!--(\[if\s.+?\])>(.+?)<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
+            error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
+            self::print_r( $matches, '$matches' );
+            return $matches;
+        }
+        return FALSE;
     }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
