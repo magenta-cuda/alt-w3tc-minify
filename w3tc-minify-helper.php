@@ -976,8 +976,9 @@ EOD
                 # This is an inline <script> element.
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
-                    self::print_r( $data, '$data' );
+                    # self::print_r( $data,                        '$data'                        );
                     self::print_r( $data['script_tag_original'], '$data["script_tag_original"]' );
+                    self::print_r( $data['script_tag_number'],   '$data["script_tag_number"]'   );
                 }
                 if ( self::$auto_minify ) {
                     $script_tag_number = $data['script_tag_number'];
@@ -1062,8 +1063,9 @@ EOD
                     use ( $monitor ) {
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
-                    self::print_r( $last_script_tag, '$last_script_tag' );
-                    self::print_r( $minify_auto_js,  '$minify_auto_js'  );
+                    self::print_r( $do_flush_collected, '$do_flush_collected' );
+                    self::print_r( $last_script_tag,    '$last_script_tag'    );
+                    # self::print_r( $minify_auto_js,     '$minify_auto_js'     );
                 }
                 if ( self::$auto_minify ) {
                     # $last_script_tag  === '' means all scripts have been processed.
@@ -1104,13 +1106,10 @@ EOD
             add_filter( 'w3tc_minify_js_step', function( $data ) use ( $monitor ) {
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_step():' );
-                    self::print_r( $data, '$data' );
+                    # self::print_r( $data,                    '$data'                    );
+                    self::print_r( $data['files_to_minify'], '$data["files_to_minify"]' );
                 }
                 if ( self::$auto_minify ) {
-                    // This filter provides an alternate way of preventing W3TC's Minify_AutoJs::flush_collected() from executing.
-                    // This may be better than using the filter 'w3tc_minify_js_do_flush_collected' as it provides an additional
-                    // opportunity for collecting data - $data['files_to_minify'].
-                    // $data['files_to_minify'] = [];   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                     if ( array_diff( $data['files_to_minify'], self::$files_to_minify ) ) {
                         error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[1]' );
                     }
@@ -1119,6 +1118,7 @@ EOD
                         self::print_r( self::$last_script_tag_is , 'self::$last_script_tag_is' );
                         self::print_r( self::$files_to_minify,     'self::$files_to_minify'    );
                     }
+                    # Set $data['files_to_minify'] to its shadow.
                     switch ( self::$last_script_tag_is ) {
                     # case self::INLINE_SCRIPT: should not happen because filter 'w3tc_minify_js_do_flush_collected' prevents it.
                     # case self::INLINE_SCRIPT:
