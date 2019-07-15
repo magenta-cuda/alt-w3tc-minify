@@ -1,3 +1,18 @@
+# Update of July 2019
+
+I original wrote this plugin to set the vector of JavaScript files in W3TC's
+"manual minify" mode. However, I think the design of W3TC 0.9.7.5 “manual minify”
+mode prevents W3TC 0.9.7.5 JavaScript minification in “manual minify” mode from
+being successful except under some quite restrictive conditions which will not be
+true for some modern WordPress web pages. After analyzing W3TC 0.9.7.5's JavaScript
+minification in "auto minify" mode I have found a workaround for the problem of
+W3TC emitting multiple minified batch files instead of just one. The workaround just
+also batches the inline scripts which W3TC does not do - forcing W3TC to stop
+batching and emit the minified file of the current batched file everytime it 
+encounters a inline JavaScript element in order to preserve the script order.
+
+# The original README
+
 The W3 Total Cache auto minify mode does not work on my web site. The problem
 is the order of the JavaScript files using the auto minify mode is different
 from the order without minification. This results in undefined JavaScript
