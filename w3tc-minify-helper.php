@@ -109,6 +109,7 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
  *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_script_tags", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_tag_minification", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
@@ -1004,6 +1005,15 @@ EOD
                 return $buffer;
             } );
         }
+        if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_script_tags'] ) ) ) {
+            add_filter( 'w3tc_minify_js_script_tags', function( $script_tags ) use ( $monitor ) {
+                if ($monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_script_tags():' );
+                    self::print_r( $script_tags, $script_tags );
+                }
+                return $script_tags;
+            } );
+        }
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) use ( $monitor ) {
@@ -1199,6 +1209,14 @@ EOD
                 }
                 return $minify_filename;
             }, 10, 3 );
+        }
+        if ( self::$auto_minify ) {
+            # If the page contains only inline <script> elements then W3TC will not run its JavaScript minifier because it batches
+            # only non inline <script> elements and since there are none of these it sees an empty batch. However, the monitor's
+            # minifier has batched the inline <script> elements and it needs W3TC to run its minifier as the monitor's minifier
+            # runs on a filter in W3TC's minifier code. To solve this we will emit dummy <head> and <body> <script> elements.
+            wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
+            wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
         }
         return self::$auto_minify;
     }   # public static function monitor_minify_autojs() {
