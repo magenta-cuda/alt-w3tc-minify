@@ -1031,8 +1031,10 @@ EOD
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
                         # Save the content of the inline <script> element in a file.
-                        $filename          = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
-                        \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
+                        $filename          = self::MINIFY_FILENAME_PREFIX . md5( $content ) . '.js';
+                        if ( ! file_exists( $filename ) ) {
+                            \W3TC\Util_File::file_put_contents_atomic( $filename, $content );
+                        }
                         # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                         # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
                         # shadow instead. We will need to correct this later.
@@ -1223,7 +1225,7 @@ EOD
     public static function purge_auto_minify_cache() {
         # Since this only removes the disk files it must be called as a 'w3tc_flush_minify' action
         # as W3TC's code is needed to remove the corresponding map entries.
-        # $filename = self::MINIFY_FILENAME_PREFIX . $script_tag_number . '-' . md5( $content ) . '.js';
+        # $filename = self::MINIFY_FILENAME_PREFIX . md5( $content ) . '.js';
         foreach ( glob( self::MINIFY_FILENAME_PREFIX . '*.js' ) as $filename ) {
             # error_log( 'MC_Alt_W3TC_Minify::purge_auto_minify_cache():$filename = "' . $filename . '"' );
             @unlink( $filename );
