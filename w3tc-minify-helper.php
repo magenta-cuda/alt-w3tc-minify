@@ -193,14 +193,17 @@ class MC_Alt_W3TC_Minify {
     private static $use_include        = FALSE;
     # The following variables are used to control my monitor of Minify_AutoJs.
     # $auto_minify === TRUE - replaces the minification of Minify_AutoJs - this should reduce the number of minified files.
-    private static $auto_minify        = FALSE;
+    private static $auto_minify         = FALSE;
+    # $all_scripts also includes conditional scripts (<!--[if lte IE 8]><script... <![endif]-->) which W3TC ignores. 
+    private static $all_scripts         = NULL;
+    private static $conditional_scripts = NULL;
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
-    private static $files_to_minify    = [];
+    private static $files_to_minify     = [];
     # $last_script_tag_is is the $last_script_tag seen by the filter 'w3tc_minify_js_do_flush_collected'
-    private static $last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
+    private static $last_script_tag_is  = self::UNKNOWN_SCRIPT_TAG;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
-    private static $minify_filename    = NULL;
+    private static $minify_filename     = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
             @mkdir( self::OUTPUT_DIR, 0755 );
@@ -986,10 +989,20 @@ EOD
                         # Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
                         # also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
                         # order execution.
+                        $conditional_scripts = [];
                         foreach ( $matches as $match ) {
-                            error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
-                            error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
-                            error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] );
+                            # error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
+                            # error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
+                            error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] . '####' );
+                            $conditional_scripts[] = $match[2];
+                        }
+                        self::$conditional_scripts = $conditional_scripts;
+                        if ( preg_match_all( '~(<script\s*[^>]*>.*?</script>|</head>)~is', $buffer, $matches ) ) {
+                            self::$all_scripts = $all_scripts = $matches[1];
+                            foreach ( $conditional_scripts as $conditional_script ) {
+                                $conditional_script_index = array_search( $conditional_script, $all_scripts );
+                                error_log( 'FILTER::w3tc_process_content():$conditional_script_index=' . $conditional_script_index );
+                            }
                         }
                     }
                 }
@@ -1244,7 +1257,7 @@ EOD
         return $option;
     }
     private static function check_for_conditional_html( $buffer ) {
-        if ( preg_match_all( '#<!--(\[if\s.+?\])>(.+?)<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
+        if ( preg_match_all( '#<!--(\[if\s.+?\])>.*?(<script.+?</script>).*?<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
             error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
             self::print_r( $matches, '$matches' );
             return $matches;
