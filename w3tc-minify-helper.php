@@ -1022,7 +1022,11 @@ EOD
             add_filter( 'w3tc_minify_js_script_tags', function( $script_tags ) use ( $monitor ) {
                 if ($monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_script_tags():' );
-                    self::print_r( $script_tags, $script_tags );
+                    self::print_r( $script_tags, '$script_tags' );
+                }
+                if ( self::$auto_minify ) {
+                    // Replace the $script_tags with self::$all_scripts which includes HTML comment conditional inline scripts.
+                    return self::$all_scripts;
                 }
                 return $script_tags;
             } );
@@ -1041,8 +1045,15 @@ EOD
                     $script_tag_number = $data['script_tag_number'];
                     if ( strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
                         # Collect this inline <script> element.
+                        $conditional = in_array( $script_tag, self::$conditional_scripts );
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
+                        # Bracket conditional inline scripts with a matching JavaScript condition.
+                        if ( $conditional ) {
+                            $condition = 'w3tcmHtmlCond_' . md5( $script_tag );
+                            // $condition will be true if and ony if the corresponding HTML conditional comment is true.
+                            $content   = "if ( typeof {$condition} !== 'undefined' && {$condition} ) {\n{$content}\n}\n";
+                        }
                         # Save the content of the inline <script> element in a file.
                         $filename          = self::MINIFY_FILENAME_PREFIX . md5( $content ) . '.js';
                         if ( ! file_exists( $filename ) ) {
@@ -1059,8 +1070,14 @@ EOD
                         self::$files_to_minify[$script_tag_number] = substr( $filename, strlen( ABSPATH ) );
                         # Remove this inline <script> element.
                         $data['should_replace'] = TRUE;
-                        // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
-                        $data['script_tag_new'] = "<!-- mc_w3tcm: inline -->\n";
+                        if ( $conditional ) {
+                            // Replace the inline script with a global JavaScript variable $condition that is set to true.
+                            // $condition will be true if and ony if the corresponding HTML conditional comment is true.
+                            $data['script_tag_new'] = "<script>var {$condition} = true;</script>";
+                        } else {
+                            // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
+                            $data['script_tag_new'] = "<!-- mc_w3tcm: inline -->\n";
+                        }
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
                             self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
