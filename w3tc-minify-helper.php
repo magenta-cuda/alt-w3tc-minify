@@ -1045,13 +1045,14 @@ EOD
                     $script_tag_number = $data['script_tag_number'];
                     if ( strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
                         # Collect this inline <script> element.
+                        # Is this a HTML comment conditional inline script?
                         $conditional = in_array( $script_tag, self::$conditional_scripts );
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
-                        # Bracket conditional inline scripts with a matching JavaScript condition.
+                        # Bracket HTML comment conditional inline scripts with a matching JavaScript condition.
                         if ( $conditional ) {
                             $condition = 'w3tcmHtmlCond_' . md5( $script_tag );
-                            // $condition will be true if and ony if the corresponding HTML conditional comment is true.
+                            # $condition will be true if and ony if the corresponding HTML comment conditional is true.
                             $content   = "if ( typeof {$condition} !== 'undefined' && {$condition} ) {\n{$content}\n}\n";
                         }
                         # Save the content of the inline <script> element in a file.
@@ -1071,8 +1072,8 @@ EOD
                         # Remove this inline <script> element.
                         $data['should_replace'] = TRUE;
                         if ( $conditional ) {
-                            // Replace the inline script with a global JavaScript variable $condition that is set to true.
-                            // $condition will be true if and ony if the corresponding HTML conditional comment is true.
+                            # Replace the inline script with a global JavaScript variable $condition that is set to true.
+                            # $condition will be true if and ony if the corresponding HTML comment conditional is true.
                             $data['script_tag_new'] = "<script>var {$condition} = true;</script>";
                         } else {
                             // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
