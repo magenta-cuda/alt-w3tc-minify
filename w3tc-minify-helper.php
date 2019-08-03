@@ -1074,10 +1074,10 @@ EOD
                         if ( $conditional ) {
                             # Replace the inline script with a global JavaScript variable $condition that is set to true.
                             # $condition will be true if and ony if the corresponding HTML comment conditional is true.
-                            $data['script_tag_new'] = "<script>var {$condition} = true;</script>";
+                            $data['script_tag_new'] = "<script>\n// mc_w3tcm: inline replaced.\nvar {$condition} = true;\n</script>";
                         } else {
                             // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
-                            $data['script_tag_new'] = "<!-- mc_w3tcm: inline -->\n";
+                            $data['script_tag_new'] = "<!-- mc_w3tcm: inline replaced. -->\n";
                         }
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
@@ -1217,10 +1217,20 @@ EOD
                 return $data;
             } );
         }
-        if ( ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) {
+        if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) ) {
             add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
-                error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
-                self::print_r( $data, '$data' );
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
+                    self::print_r( $data, '$data' );
+                }
+                if ( self::$auto_minify ) {
+                    # The embed position may be wrong if there are inline script elements as W3TC does not process these as files
+                    # to be minified and does not update the embed position accordingly.
+                    // TODO: Calculate embed position considering the replaced in line scripts 
+                    // $data['embed_pos']       = ?;
+                    error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
+                    self::print_r( $data, '$data' );
+                }
                 return $data;
             } );
         }
