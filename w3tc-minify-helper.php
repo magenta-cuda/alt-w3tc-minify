@@ -185,30 +185,31 @@ class MC_Alt_W3TC_Minify {
     # skipped file is emitted at its normal location. A "include" batch file is emitted just after the <head> tag,
     # a "include-body" batch file is emitted just after the <body> tag and a "include-footer" batch file is emitted
     # just before the </body> tag.
-    private static $files_to_skip      = [
+    private static $files_to_skip             = [
         '/wp-includes/js/admin-bar.js',
         '/wp-includes/js/admin-bar.min.js'
     ];
     # By default processing is skipped. The filter 'template_include' will conditionally enable processing.
-    private static $skip               = TRUE;
+    private static $skip                      = TRUE;
     # $use_include sets whether to use 'include' or 'include-body' for header scripts
-    private static $use_include        = FALSE;
+    private static $use_include               = FALSE;
     # The following variables are used to control my monitor of Minify_AutoJs.
     # $auto_minify === TRUE - replaces the minification of Minify_AutoJs - this should reduce the number of minified files.
-    private static $auto_minify         = FALSE;
+    private static $auto_minify               = FALSE;
     # $all_scripts also includes conditional scripts (<!--[if lte IE 8]><script... <![endif]-->) which W3TC ignores. 
-    private static $all_scripts         = NULL;
-    private static $conditional_scripts = NULL;
+    private static $all_scripts               = NULL;
+    private static $conditional_scripts       = NULL;
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
-    private static $files_to_minify     = [];
+    private static $files_to_minify           = [];
     # $last_script_tag_is is the $last_script_tag seen by the filter 'w3tc_minify_js_do_flush_collected'
-    private static $last_script_tag_is  = self::UNKNOWN_SCRIPT_TAG;
+    private static $last_script_tag_is        = self::UNKNOWN_SCRIPT_TAG;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
-    private static $minify_filename     = NULL;
+    private static $minify_filename           = NULL;
     # For inline scripts save the tag position and whether the script was conditional or not.
     private static $inline_script_tag_pos     = NULL;
     private static $inline_script_conditional = NULL;
+    private static $inline_script_embed_pos   = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
             @mkdir( self::OUTPUT_DIR, 0755 );
@@ -1066,7 +1067,7 @@ EOD
                     if ( strpos( ( $script_tag = $data['script_tag_original'] ), '</head>' ) === FALSE ) {
                         # Collect this inline <script> element.
                         # Is this a HTML comment conditional inline script?
-                        $conditional = in_array( $script_tag, self::$conditional_scripts );
+                        $conditional = self::$conditional_scripts && in_array( $script_tag, self::$conditional_scripts );
                         # Remove the HTML start and end tags from $script_tag.
                         $content           = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
                         # Bracket HTML comment conditional inline scripts with a matching JavaScript condition.
@@ -1182,6 +1183,16 @@ EOD
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
                             self::$last_script_tag_is        = self::INLINE_SCRIPT;
+                            // TODO: The following does not work because $minify_auto_js->buffer is private.
+                            // PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$buffer
+                            // TODO: Must find another way of setting self::$inline_script_embed_pos.
+                            // if ( self::$inline_script_conditional ) {
+                            //     self::$inline_script_embed_pos = strpos( $minify_auto_js->buffer, '<![endif]-->', self::$inline_script_tag_pos ) + 11;
+                            // } else {
+                            //     self::$inline_script_embed_pos = self::$inline_script_tag_pos;
+                            // }
+                            // error_log( 'FILTER::w3tc_minify_js_do_flush_collected():substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256)='
+                            //     . substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256) );
                             # Clear the inline script data.
                             self::$inline_script_tag_pos     = NULL;
                             self::$inline_script_conditional = NULL;
@@ -1243,7 +1254,7 @@ EOD
             } );
         }
         if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_step_script_to_embed'] ) ) ) {
-            add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) {
+            add_filter( 'w3tc_minify_js_step_script_to_embed', function( $data ) use ( $monitor ) {
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
                     self::print_r( $data, '$data' );
