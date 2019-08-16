@@ -136,6 +136,8 @@ define( 'MC_DEBUG', TRUE );   # TODO: set to FALSE for production
 
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
+    const W3TC_FILE                    = 'w3-total-cache/w3-total-cache.php';
+    const W3TC_VERSION                 = '0.9.7.5';
     const OPTION_NAME                  = 'mc_alt_w3tc_minify';
     const OPTION_LOG_NAME              = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME          = 'mc_alt_w3tc_minify_skipped';
@@ -204,6 +206,9 @@ class MC_Alt_W3TC_Minify {
     private static $last_script_tag_is  = self::UNKNOWN_SCRIPT_TAG;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
     private static $minify_filename     = NULL;
+    # For inline scripts save the tag position and whether the script was conditional or not.
+    private static $inline_script_tag_pos     = NULL;
+    private static $inline_script_conditional = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
             @mkdir( self::OUTPUT_DIR, 0755 );
@@ -431,6 +436,18 @@ EOD
         self::delete_old_miscellaneous( 86400 * 10 );
     }   # public static function init() {
     public static function admin_init() {
+        $w3tc_plugin_data = get_plugin_data( WP_PLUGIN_DIR . '/' . self::W3TC_FILE );
+        if ( $w3tc_plugin_data['Version'] !== self::W3TC_VERSION ) {
+            add_action( 'admin_notices', function() use ( $w3tc_plugin_data ) {
+                ?>
+                <div class="notice notice-warning is-dismissible">
+                    The W3TC Minify Helper plugin may not be compatible with W3 Total Cache version
+                    "<?php echo $w3tc_plugin_data['Version']; ?>". The W3TC Minify Helper plugin has only been tested with
+                    W3 Total Cache version <?php echo self::W3TC_VERSION; ?>.
+                </div>
+                <?php
+            } );
+        }
         # This plugin doesn't require much user interactivity so it doesn't have a GUI.
         # Rather some non standard plugin action links are provided.
         add_filter( 'plugin_action_links_' . plugin_basename( __FILE__ ), function( $links ) {
@@ -972,7 +989,9 @@ EOD
         ];
     }
     # monitor_minify_autojs() can analyze the processing of Minify_AutoJs.php.
-    # monitor_minify_autojs() optionally can replace the minify processing of Minify_AutoJs.php.
+    # monitor_minify_autojs() optionally can replace the minify processing of W3TC's Minify_AutoJs.php.
+    # If get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] )[ self::AUTO_MINIFY_OPTION ] is TRUE then monitor_minify_autojs()
+    # replaces the the minify processing of W3TC's Minify_AutoJs.php and also disables the manual minify processing of this plugin.
     public static function monitor_minify_autojs() {
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return FALSE;
@@ -1004,8 +1023,8 @@ EOD
                                 error_log( 'FILTER::w3tc_process_content():$conditional_script_index=' . $conditional_script_index );
                             }
                         }
-                    }
-                }
+                    }   # if ( $matches = self::check_for_conditional_html( $buffer ) ) {
+                }   # if ( self::$auto_minify ) {
                 if ( $monitor ) {
                     \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_process_content_buffer', $buffer );
                 }
@@ -1024,8 +1043,9 @@ EOD
                     error_log( 'FILTER::w3tc_minify_js_script_tags():' );
                     self::print_r( $script_tags, '$script_tags' );
                 }
-                if ( self::$auto_minify ) {
-                    // Replace the $script_tags with self::$all_scripts which includes HTML comment conditional inline scripts.
+                if ( self::$auto_minify && self::$all_scripts ) {
+                    # If there are HTML comment conditional inline scripts replace the $script_tags with self::$all_scripts
+                    # which includes the HTML comment conditional inline scripts.
                     return self::$all_scripts;
                 }
                 return $script_tags;
@@ -1079,6 +1099,8 @@ EOD
                             // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
                             $data['script_tag_new'] = "<!-- mc_w3tcm: inline replaced. -->\n";
                         }
+                        self::$inline_script_tag_pos     = $data['script_tag_pos'];
+                        self::$inline_script_conditional = $conditional;
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
                             self::print_r( self::$files_to_minify, 'self::$files_to_minify' );
@@ -1159,7 +1181,10 @@ EOD
                         }
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
-                            self::$last_script_tag_is = self::INLINE_SCRIPT;
+                            self::$last_script_tag_is        = self::INLINE_SCRIPT;
+                            # Clear the inline script data.
+                            self::$inline_script_tag_pos     = NULL;
+                            self::$inline_script_conditional = NULL;
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                         } else {
                             # This is a skipped <script> element.
@@ -1339,7 +1364,7 @@ EOD
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
     add_action( 'admin_init', function() {
-        if ( is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+        if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
             MC_Alt_W3TC_Minify::admin_init();
         } else {
             add_action( 'admin_notices', function() {
@@ -1354,7 +1379,7 @@ if ( defined( 'WP_ADMIN' ) ) {
 } else {
     add_action( 'wp_loaded', function() {
         include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
-        if ( is_plugin_active( 'w3-total-cache/w3-total-cache.php' ) ) {
+        if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
             MC_Alt_W3TC_Minify::init();
         }
     } );
@@ -1363,7 +1388,7 @@ if ( defined( 'WP_ADMIN' ) ) {
 if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'MC_DEBUG' ) && MC_DEBUG ) {
     if ( ! defined( 'WP_ADMIN' ) ) {
         add_action( 'wp_loaded', function() {
-            if ( ! is_plugin_active( 'w3-total-cache/w3-total-cache.php' )
+            if ( ! is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE )
                 || \W3TC\Dispatcher::config()->get_boolean( 'minify.auto' ) ) {
                 return;
             }
