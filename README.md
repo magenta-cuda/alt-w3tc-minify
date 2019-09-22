@@ -1,3 +1,9 @@
+# Update of September 2019
+
+In September 2019 W3TC released a new version 0.10.0. With respect to JavaScript auto
+minification my analysis is still valid. The problems found in the analysis have not
+been fixed.
+
 # Update of July 2019
 
 I original wrote this plugin to set the vector of JavaScript files in W3TC's
