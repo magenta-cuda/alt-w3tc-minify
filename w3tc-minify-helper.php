@@ -1014,7 +1014,12 @@ EOD
                             # error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
                             # error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
                             error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] . '####' );
-                            $conditional_scripts[] = $match[2];
+                            if ( preg_match( '#<script.+?</script>#s', $match[2], $script_matches ) === 1 ) {
+                                # $match[2] should always have a <script> element but may be padded with spaces or other text
+                                # so extract exactly just the <script> element
+                                error_log( 'FILTER::w3tc_process_content():$script_matches[0]=' . $script_matches[0] . '####' );
+                                $conditional_scripts[] = $script_matches[0];
+                            }
                         }
                         self::$conditional_scripts = $conditional_scripts;
                         if ( preg_match_all( '~(<script\s*[^>]*>.*?</script>|</head>)~is', $buffer, $matches ) ) {
