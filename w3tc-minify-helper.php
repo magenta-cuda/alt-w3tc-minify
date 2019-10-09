@@ -1264,8 +1264,8 @@ EOD
                     # to be minified and does not update the embed position accordingly.
                     // TODO: Calculate embed position considering the replaced in line scripts 
                     // $data['embed_pos']       = ?;
-                    error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
-                    self::print_r( $data, '$data' );
+                    // error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
+                    // self::print_r( $data, '$data' );
                 }
                 return $data;
             } );
@@ -1321,7 +1321,16 @@ EOD
         return $option;
     }
     private static function check_for_conditional_html( $buffer ) {
-        if ( preg_match_all( '#<!--(\[if\s.+?\])>.*?(<script.+?</script>).*?<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
+        # if ( preg_match_all( '#<!--(\[if\s.+?\])>.*?(<script.+?</script>).*?<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
+        if ( preg_match_all( '#<!--(\[if\s.+?\])>(.*?)<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
+            error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
+            self::print_r( $matches, '$matches' );
+            foreach ( $matches as &$match ) {
+                if ( strpos( $match[2], '<script' ) === FALSE ) {
+                    $match = FALSE;
+                }
+            }
+            $matches = array_values( array_filter( $matches ) );
             error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
             self::print_r( $matches, '$matches' );
             return $matches;
