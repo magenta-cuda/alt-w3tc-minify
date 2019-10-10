@@ -202,6 +202,7 @@ class MC_Alt_W3TC_Minify {
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
     private static $files_to_minify           = [];
+    private static $files_to_minify_extras    = [];
     # $last_script_tag_is is the $last_script_tag seen by the filter 'w3tc_minify_js_do_flush_collected'
     private static $last_script_tag_is        = self::UNKNOWN_SCRIPT_TAG;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
@@ -1089,7 +1090,7 @@ EOD
                         # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                         # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
                         # shadow instead. We will need to correct this later.
-                        if ( $script_tag_number !== count( self::$files_to_minify ) ) {
+                        if ( $script_tag_number !== count( self::$files_to_minify ) - array_sum( self::$files_to_minify_extras ) ) {
                             error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
@@ -1177,15 +1178,16 @@ EOD
                     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                     # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
                     # shadow instead. We will need to correct this later.
-                    if ( $data['script_tag_number'] !== count( self::$files_to_minify ) ) {
+                    if ( $data['script_tag_number'] !== count( self::$files_to_minify ) - array_sum( self::$files_to_minify_extras ) ) {
                         error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
                         error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $data['script_tag_number'] );
                         error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                     }
-                    self::$files_to_minify[$script_tag_number    ] = substr( $filename_pre, strlen( ABSPATH ) );
-                    self::$files_to_minify[$script_tag_number + 1] = Util_Environment::url_to_docroot_filename( $data['script_src'] );
-                    self::$files_to_minify[$script_tag_number + 2] = substr( $filename_pre, strlen( ABSPATH ) );
-                    # TODO: The shadow $files_to_minify will be out of sync - FIX THIS!.
+                    self::$files_to_minify[ $script_tag_number     ]    = substr( $filename_pre, strlen( ABSPATH ) );
+                    self::$files_to_minify[ $script_tag_number + 1 ]    = Util_Environment::url_to_docroot_filename( $data['script_src'] );
+                    self::$files_to_minify[ $script_tag_number + 2 ]    = substr( $filename_pre, strlen( ABSPATH ) );
+                    # The shadow $files_to_minify will be out of sync so fix this.
+                    self::$files_to_minify_extras[ $script_tag_number ] = 2;
                 }
                 return $data;
             } );
