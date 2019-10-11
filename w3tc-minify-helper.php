@@ -1156,44 +1156,6 @@ EOD
                 }
                 return $do_tag_minification;
             }, PHP_INT_MAX, 3 );
-            add_filter( 'w3tc_minify_js_do_excluded_tag_script_minification', function( $data ) {
-                if ( self::$conditional_scripts && in_array( $data['script_tag_original'], self::$conditional_scripts ) ) {
-                    # This is a conditionally loaded script.
-                    $script_tag_number      = $data['script_tag_number'];
-                    $condition              = 'w3tcmHtmlCond_' . md5( $data['script_tag_original'] );
-                    $data['should_replace'] = TRUE;
-                    $data['script_tag_new'] = "<script>\n// mc_w3tcm: HTML comment conditional replaced.\nvar {$condition} = true;\n</script>";
-                    # The script content must be bracketed with the condition.
-                    $content_pre            = "if ( typeof {$condition} !== 'undefined' && {$condition} ) {\n";
-                    # Save the begin bracket of the <script> element in a file.
-                    $filename_pre           = self::MINIFY_FILENAME_PREFIX . md5( $content_pre ) . '.js';
-                    if ( ! file_exists( $filename_pre ) ) {
-                        \W3TC\Util_File::file_put_contents_atomic( $filename_pre, $content_pre );
-                    }
-                    $content_post           = "\n}\n";
-                    # Save the end bracket of the <script> element in a file.
-                    $filename_post          = self::MINIFY_FILENAME_PREFIX . md5( $content_post ) . '.js';
-                    if ( ! file_exists( $filename_post ) ) {
-                        \W3TC\Util_File::file_put_contents_atomic( $filename_post, $content_post );
-                    }
-                    # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
-                    # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
-                    # shadow instead. We will need to correct this later.
-                    if ( $script_tag_number !== count( self::$files_to_minify ) - array_sum( self::$files_to_minify_extras ) ) {
-                        error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
-                        error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
-                        error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
-                    }
-                    self::$files_to_minify[ $script_tag_number     ]    = substr( $filename_pre, strlen( ABSPATH ) );
-                    self::$files_to_minify[ $script_tag_number + 1 ]    = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
-                    self::$files_to_minify[ $script_tag_number + 2 ]    = substr( $filename_pre, strlen( ABSPATH ) );
-                    # The shadow $files_to_minify will be out of sync so fix this.
-                    self::$files_to_minify_extras[ $script_tag_number ] = 2;
-                    error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
-                    self::print_r( $data, '$data' );
-                }
-                return $data;
-            } );
         }
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_excluded_tag_script_minification'] ) ) ) {
@@ -1203,8 +1165,44 @@ EOD
                     self::print_r( $data, '$data' );
                 }
                 if ( self::$auto_minify ) {
-                    $data['should_replace'] = TRUE;
-                    $data['script_tag_new'] = "<!-- mc_w3tcm -->{$data['script_tag_original']}<!-- mc_w3tcm-->";
+                    if ( self::$conditional_scripts && in_array( $data['script_tag_original'], self::$conditional_scripts ) ) {
+                        # This is a conditionally loaded script.
+                        $script_tag_number      = $data['script_tag_number'];
+                        $condition              = 'w3tcmHtmlCond_' . md5( $data['script_tag_original'] );
+                        $data['should_replace'] = TRUE;
+                        $data['script_tag_new'] = "<script>\n// mc_w3tcm: HTML comment conditional replaced.\nvar {$condition} = true;\n</script>";
+                        # The script content must be bracketed with the condition.
+                        $content_pre            = "if ( typeof {$condition} !== 'undefined' && {$condition} ) {\n";
+                        # Save the begin bracket of the <script> element in a file.
+                        $filename_pre           = self::MINIFY_FILENAME_PREFIX . md5( $content_pre ) . '.js';
+                        if ( ! file_exists( $filename_pre ) ) {
+                            \W3TC\Util_File::file_put_contents_atomic( $filename_pre, $content_pre );
+                        }
+                        $content_post           = "\n}\n";
+                        # Save the end bracket of the <script> element in a file.
+                        $filename_post          = self::MINIFY_FILENAME_PREFIX . md5( $content_post ) . '.js';
+                        if ( ! file_exists( $filename_post ) ) {
+                            \W3TC\Util_File::file_put_contents_atomic( $filename_post, $content_post );
+                        }
+                        # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
+                        # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
+                        # shadow instead. We will need to correct this later.
+                        if ( $script_tag_number !== count( self::$files_to_minify ) - array_sum( self::$files_to_minify_extras ) ) {
+                            error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
+                            error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
+                            error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
+                        }
+                        self::$files_to_minify[ $script_tag_number     ]    = substr( $filename_pre,  strlen( ABSPATH ) );
+                        self::$files_to_minify[ $script_tag_number + 1 ]    = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
+                        self::$files_to_minify[ $script_tag_number + 2 ]    = substr( $filename_post, strlen( ABSPATH ) );
+                        # The shadow $files_to_minify will be out of sync so fix this.
+                        self::$files_to_minify_extras[ $script_tag_number ] = 2;
+                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
+                        self::print_r( $data, '$data' );
+                    } else {
+                        $data['should_replace'] = TRUE;
+                        $data['script_tag_new'] = "<!-- mc_w3tcm -->{$data['script_tag_original']}<!-- mc_w3tcm-->";
+                    }
                 }
                 return $data;
             } );
@@ -1246,6 +1244,9 @@ EOD
                             # Clear the inline script data.
                             self::$inline_script_tag_pos     = NULL;
                             self::$inline_script_conditional = NULL;
+                            return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
+                        } else if ( self::$conditional_scripts && in_array( $last_script_tag, self::$conditional_scripts ) ) {
+                            # This is a conditionally loaded script.
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                         } else {
                             # This is a skipped <script> element.
