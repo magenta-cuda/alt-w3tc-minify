@@ -998,6 +998,14 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return FALSE;
         }
+        add_action( 'wp_head', function() {
+            # This is a way to insert a tag as the last item in the HTML <head> section.
+            echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
+        }, PHP_INT_MAX );
+        add_action( 'wp_footer', function() {
+            # This is a way to insert a tag as the last item in the HTML <body> section.
+            echo '<div style="display:none;">##### SHOULD BE LAST TAG IN BODY SECTION #####</div>';
+        }, PHP_INT_MAX );
         self::$auto_minify = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_process_content'] ) ) ) {
