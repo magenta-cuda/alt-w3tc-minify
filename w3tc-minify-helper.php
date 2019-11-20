@@ -1411,33 +1411,48 @@ EOD
     # when the real print_r() is used in some W3TC filters e.g. 'w3tc_minify_js_step' which are executed in output
     # buffering display handlers. N.B. this print_r() does not have the second boolean argument.
     public static function print_r( $var, $name = '' ) {
+        static $depth        = 0;
+        static $done_objects = [];
         static $tabs = '';
+        ++$depth;
         $tabs .= '    ';
         $delim = '[';
-        if ( is_object( $var ) ) {
-            $class_name = get_class( $var );
-            $var        = (array) $var;
-            $delim      = '{';
-        }
-        if ( is_array( $var ) ) {
-            error_log( "{$tabs}{$name} = " . ( $delim === '[' ? 'Array' : $class_name ) . '[' . sizeof( $var ) . "] = {$delim}" );
-            foreach ( $var as $index => $value ) {
-                if ( ! ctype_print( $index ) ) {
-                    # Fix protected and private property names of objects
-                    $index = str_replace( "\x0", '-', $index );
+        while ( TRUE ) {
+            if ( is_object( $var ) ) {
+                $object_hash = spl_object_hash( $var );
+                if ( in_array( $object_hash, $done_objects ) ) {
+                    error_log( "{$tabs}{$name} = *** RECURSION ***" );
+                    break;
                 }
-                self::print_r( $value, "[$index]" );
+                $done_objects[] = $object_hash;
+                $class_name = get_class( $var );
+                $var        = (array) $var;
+                $delim      = '{';
             }
-            error_log( "{$tabs}" . ( $delim === '{' ? '}' : ']' ) );
-        } else {
-            error_log( "{$tabs}{$name} = "
-                . ( is_string( $var ) ? '(String[' . strlen($var) . "]) = \"{$var}\""
-                                            . ( strpos( $var, "\n" ) !== FALSE ? ' = (String[' . strlen($var) . "]) = {$name}" : '' )
-                                      : ( $var === NULL ? 'NULL'
-                                                        : ( is_bool ( $var ) ? ( $var ? 'TRUE' : 'FALSE' )
-                                                                             : "(Scalar) = {$var}" ) ) ) );
-        }
+            if ( is_array( $var ) ) {
+                error_log( "{$tabs}{$name} = " . ( $delim === '[' ? 'Array' : $class_name ) . '[' . sizeof( $var ) . "] = {$delim}" );
+                foreach ( $var as $index => $value ) {
+                    if ( ! ctype_print( $index ) ) {
+                        # Fix protected and private property names of objects
+                        $index = str_replace( "\x0", '-', $index );
+                    }
+                    self::print_r( $value, "[$index]" );
+                }
+                error_log( "{$tabs}" . ( $delim === '{' ? '}' : ']' ) );
+            } else {
+                error_log( "{$tabs}{$name} = "
+                    . ( is_string( $var ) ? '(String[' . strlen($var) . "]) = \"{$var}\""
+                                                . ( strpos( $var, "\n" ) !== FALSE ? ' = (String[' . strlen($var) . "]) = {$name}" : '' )
+                                          : ( $var === NULL ? 'NULL'
+                                                            : ( is_bool ( $var ) ? ( $var ? 'TRUE' : 'FALSE' )
+                                                                                 : "(Scalar) = {$var}" ) ) ) );
+            }
+            break;
+        }   # while ( TRUE ) {
         $tabs = substr( $tabs, 0, -4 );
+        if ( --$depth === 0 ) {
+            $done_objects = [];
+        }
     }
 }
 # Abort execution if the W3 Total Cache plugin is not activated.
