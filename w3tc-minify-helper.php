@@ -115,6 +115,7 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_excluded_tag_script_minification", TRUE );'
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
  *
@@ -1178,9 +1179,11 @@ EOD
                         # This is a conditionally loaded script.
                         $script_tag_number      = $data['script_tag_number'];
                         $condition              = 'w3tcmHtmlCond_' . md5( $data['script_tag_original'] );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$condition=' . $condition );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$data["script_tag_original"]='
-                                       . $data['script_tag_original'] );
+                        if ( $monitor ) {
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$condition=' . $condition );
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$data["script_tag_original"]='
+                                           . $data['script_tag_original'] );
+                        }
                         $data['should_replace'] = TRUE;
                         $data['script_tag_new'] = "<script>\n// mc_w3tcm: HTML comment conditional replaced.\nvar {$condition} = true;\n</script>";
                         # The script content must be bracketed with the condition.
@@ -1208,17 +1211,19 @@ EOD
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
                         self::$files_to_minify[ $script_tag_number + $extras + 1 ] = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
                         self::$files_to_minify[ $script_tag_number + $extras + 2 ] = substr( $filename_post, strlen( ABSPATH ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
-                                       .   $script_tag_number + $extras       . ']=' . substr( $filename_pre,  strlen( ABSPATH ) ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
-                                       . ( $script_tag_number + $extras + 1 ) . ']='
-                                       . \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
-                                       . ( $script_tag_number + $extras + 2 ) . ']=' . substr( $filename_post, strlen( ABSPATH ) ) );
                         # The shadow $files_to_minify will be out of sync so fix this.
                         self::$files_to_minify_extras[ $script_tag_number ] = 2;
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
-                        self::print_r( $data, '$data' );
+                        if ( $monitor ) {
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                           . ( $script_tag_number + $extras     ) . ']=' . substr( $filename_pre,  strlen( ABSPATH ) ) );
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                           . ( $script_tag_number + $extras + 1 ) . ']='
+                                           . \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) );
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                           . ( $script_tag_number + $extras + 2 ) . ']=' . substr( $filename_post, strlen( ABSPATH ) ) );
+                            error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
+                            self::print_r( $data, '$data' );
+                        }
                     } else {
                         $data['should_replace'] = TRUE;
                         $data['script_tag_new'] = "<!-- mc_w3tcm -->{$data['script_tag_original']}<!-- mc_w3tcm-->";
