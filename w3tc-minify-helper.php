@@ -1104,7 +1104,7 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        self::$files_to_minify[$script_tag_number + $extras] = substr( $filename, strlen( ABSPATH ) );
+                        self::$files_to_minify[ $script_tag_number + $extras ] = substr( $filename, strlen( ABSPATH ) );
                         # Remove this inline <script> element.
                         $data['should_replace'] = TRUE;
                         if ( $conditional ) {
@@ -1123,7 +1123,7 @@ EOD
                         }
                     } else {
                         # This is a </head>. Update the $files_to_minify shadow with NULL to keep synchronization.
-                        self::$files_to_minify[$script_tag_number] = NULL;
+                        self::$files_to_minify[ $script_tag_number + array_sum( self::$files_to_minify_extras ) ] = NULL;
                     }
                 }
                 return $data;
@@ -1199,20 +1199,22 @@ EOD
                         # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
                         # Unfortunately we cannot access the private property $minify_auto_js->files_to_minify so modify its
                         # shadow instead. We will need to correct this later.
-                        if ( $script_tag_number !== count( self::$files_to_minify ) - array_sum( self::$files_to_minify_extras ) ) {
+                        $extras = array_sum( self::$files_to_minify_extras );
+                        if ( $script_tag_number !== count( self::$files_to_minify ) - $extras ) {
                             error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[0]' );
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        self::$files_to_minify[ $script_tag_number     ] = substr( $filename_pre,  strlen( ABSPATH ) );
-                        self::$files_to_minify[ $script_tag_number + 1 ] = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
-                        self::$files_to_minify[ $script_tag_number + 2 ] = substr( $filename_post, strlen( ABSPATH ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify[' .  $script_tag_number        . ']='
-                                       . substr( $filename_pre,  strlen( ABSPATH ) ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify[' . ( $script_tag_number + 1 ) . ']='
+                        self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
+                        self::$files_to_minify[ $script_tag_number + $extras + 1 ] = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
+                        self::$files_to_minify[ $script_tag_number + $extras + 2 ] = substr( $filename_post, strlen( ABSPATH ) );
+                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                       .   $script_tag_number + $extras       . ']=' . substr( $filename_pre,  strlen( ABSPATH ) ) );
+                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                       . ( $script_tag_number + $extras + 1 ) . ']='
                                        . \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) );
-                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify[' . ( $script_tag_number + 2 ) . ']='
-                                       . substr( $filename_post, strlen( ABSPATH ) ) );
+                        error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
+                                       . ( $script_tag_number + $extras + 2 ) . ']=' . substr( $filename_post, strlen( ABSPATH ) ) );
                         # The shadow $files_to_minify will be out of sync so fix this.
                         self::$files_to_minify_extras[ $script_tag_number ] = 2;
                         error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
