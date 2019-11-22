@@ -1208,8 +1208,12 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
+                        if ( ( $file = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) ) === NULL ) {
+                            # The src URL is not from this website.
+                            # TODO:
+                        }
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
-                        self::$files_to_minify[ $script_tag_number + $extras + 1 ] = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] );
+                        self::$files_to_minify[ $script_tag_number + $extras + 1 ] = $file;
                         self::$files_to_minify[ $script_tag_number + $extras + 2 ] = substr( $filename_post, strlen( ABSPATH ) );
                         # The shadow $files_to_minify will be out of sync so fix this.
                         self::$files_to_minify_extras[ $script_tag_number ] = 2;
@@ -1217,8 +1221,7 @@ EOD
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
                                            . ( $script_tag_number + $extras     ) . ']=' . substr( $filename_pre,  strlen( ABSPATH ) ) );
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
-                                           . ( $script_tag_number + $extras + 1 ) . ']='
-                                           . \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) );
+                                           . ( $script_tag_number + $extras + 1 ) . ']=' . $file );
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$files_to_minify['
                                            . ( $script_tag_number + $extras + 2 ) . ']=' . substr( $filename_post, strlen( ABSPATH ) ) );
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():' );
