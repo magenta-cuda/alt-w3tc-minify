@@ -1144,7 +1144,8 @@ EOD
                     # All non-inline scripts should pass through this filter so this is a good place to track them.
                     # Is this a HTML comment conditional external script?
                     if ( self::$conditional_scripts && in_array( $script_tag, self::$conditional_scripts ) ) {
-                        # This is a conditionally loaded script.
+                        # This is a conditionally loaded script. Conditionally loaded scripts will be processed
+                        # by the later filter 'w3tc_minify_js_do_excluded_tag_script_minification'.
                         error_log( 'FILTER::w3tc_minify_js_do_tag_minification():HTML comment conditional script=' . $script_tag . '####' );
                         return false;
                     }
@@ -1208,9 +1209,17 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        if ( ( $file = \W3TC\Util_Environment::url_to_docroot_filename( $data['script_src'] ) ) === NULL ) {
+                        $script_src = \W3TC\Util_Environment::url_relative_to_full( $data['$script_src'] );
+                        if ( ( $file = \W3TC\Util_Environment::url_to_docroot_filename( $script_src ) ) === NULL ) {
                             # The src URL is not from this website.
-                            # TODO:
+                            # TODO: resolve $this->minify_helpers
+/*
+                            if ( $this->minify_helpers->is_file_for_minification( $script_src, $file ) === 'url' ) {
+                                $file = $script_src;
+                            } else {
+                                # TODO: We really don't want to come here!
+                            }
+ */
                         }
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
                         self::$files_to_minify[ $script_tag_number + $extras + 1 ] = $file;
