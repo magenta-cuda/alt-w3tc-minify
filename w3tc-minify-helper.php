@@ -212,6 +212,7 @@ class MC_Alt_W3TC_Minify {
     private static $inline_script_tag_pos     = NULL;
     private static $inline_script_conditional = NULL;
     private static $inline_script_embed_pos   = NULL;
+    private static $w3tc_minify_helpers       = NULL;
     public static function init() {
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
             @mkdir( self::OUTPUT_DIR, 0755 );
@@ -999,6 +1000,7 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return FALSE;
         }
+		self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config( ) );
         add_action( 'wp_head', function() {
             # This is a way to insert a tag as the last item in the HTML <head> section.
             echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
@@ -1209,17 +1211,14 @@ EOD
                             error_log( 'MC_Alt_W3TC_Minify Error: $script_tag_number=' . $script_tag_number );
                             error_log( 'MC_Alt_W3TC_Minify Error: count( self::$files_to_minify )=' . count( self::$files_to_minify ) );
                         }
-                        $script_src = \W3TC\Util_Environment::url_relative_to_full( $data['$script_src'] );
+                        $script_src = \W3TC\Util_Environment::url_relative_to_full( $data['script_src'] );
                         if ( ( $file = \W3TC\Util_Environment::url_to_docroot_filename( $script_src ) ) === NULL ) {
                             # The src URL is not from this website.
-                            # TODO: resolve $this->minify_helpers
-/*
-                            if ( $this->minify_helpers->is_file_for_minification( $script_src, $file ) === 'url' ) {
+                            if ( self::$w3tc_minify_helpers->is_file_for_minification( $script_src, $file ) === 'url' ) {
                                 $file = $script_src;
                             } else {
                                 # TODO: We really don't want to come here!
                             }
- */
                         }
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
                         self::$files_to_minify[ $script_tag_number + $extras + 1 ] = $file;
