@@ -200,6 +200,7 @@ class MC_Alt_W3TC_Minify {
     # $all_scripts also includes conditional scripts (<!--[if lte IE 8]><script... <![endif]-->) which W3TC ignores. 
     private static $all_scripts               = NULL;
     private static $conditional_scripts       = NULL;
+    private static $skipped_scripts           = NULL;
     # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
     private static $files_to_minify           = [];
@@ -1000,7 +1001,7 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
             return FALSE;
         }
-		self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config( ) );
+        self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config( ) );
         add_action( 'wp_head', function() {
             # This is a way to insert a tag as the last item in the HTML <head> section.
             echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
@@ -1178,14 +1179,15 @@ EOD
                     self::print_r( $data, '$data' );
                 }
                 if ( self::$auto_minify ) {
-                    if ( self::$conditional_scripts && in_array( $data['script_tag_original'], self::$conditional_scripts ) ) {
+                    $script_tag_original = $data['script_tag_original'];
+                    if ( self::$conditional_scripts && in_array( $script_tag_original, self::$conditional_scripts ) ) {
                         # This is a conditionally loaded script.
                         $script_tag_number      = $data['script_tag_number'];
-                        $condition              = 'w3tcmHtmlCond_' . md5( $data['script_tag_original'] );
+                        $condition              = 'w3tcmHtmlCond_' . md5( $script_tag_original );
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$condition=' . $condition );
                             error_log( 'FILTER::w3tc_minify_js_do_excluded_tag_script_minification():$data["script_tag_original"]='
-                                           . $data['script_tag_original'] );
+                                           . $script_tag_original );
                         }
                         $data['should_replace'] = TRUE;
                         $data['script_tag_new'] = "<script>\n// mc_w3tcm: HTML comment conditional replaced.\nvar {$condition} = true;\n</script>";
@@ -1217,7 +1219,7 @@ EOD
                             if ( self::$w3tc_minify_helpers->is_file_for_minification( $script_src, $file ) === 'url' ) {
                                 $file = $script_src;
                             } else {
-                                # TODO: We really don't want to come here!
+                                self::$skipped_scripts[] = $script_tag_original;
                             }
                         }
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
@@ -1237,7 +1239,7 @@ EOD
                         }
                     } else {
                         $data['should_replace'] = TRUE;
-                        $data['script_tag_new'] = "<!-- mc_w3tcm -->{$data['script_tag_original']}<!-- mc_w3tcm-->";
+                        $data['script_tag_new'] = "<!-- mc_w3tcm -->{$script_tag_original}<!-- mc_w3tcm-->";
                     }
                 }
                 return $data;
@@ -1281,8 +1283,9 @@ EOD
                             self::$inline_script_tag_pos     = NULL;
                             self::$inline_script_conditional = NULL;
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
-                        } else if ( self::$conditional_scripts && in_array( $last_script_tag, self::$conditional_scripts ) ) {
-                            # This is a conditionally loaded script.
+                        } else if ( self::$conditional_scripts && in_array( $last_script_tag, self::$conditional_scripts )
+                            && ( self::$skipped_scripts === NULL || ! in_array( $last_script_tag, self::$skipped_scripts ) ) ) {
+                            # This is a conditionally loaded script that was processed.
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                         } else {
                             # This is a skipped <script> element.
