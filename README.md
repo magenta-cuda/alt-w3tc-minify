@@ -1,6 +1,6 @@
-# Update of September 2019
+# Update of November 2019
 
-In September 2019 W3TC released a new version 0.10.0. With respect to JavaScript auto
+In November 2019 W3TC released a new version 0.11.0. With respect to JavaScript
 minification my analysis is still valid. The problems found in the analysis have not
 been fixed.
 
