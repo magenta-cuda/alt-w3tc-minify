@@ -1219,7 +1219,10 @@ EOD
                             if ( self::$w3tc_minify_helpers->is_file_for_minification( $script_src, $file ) === 'url' ) {
                                 $file = $script_src;
                             } else {
-                                self::$skipped_scripts[] = $script_tag_original;
+                                # We cannot handle this script so let W3TC handle it.
+                                self::$files_to_minify[ $script_tag_number + $extras ] = NULL;
+                                self::$skipped_scripts[]                               = $script_tag_original;
+                                return $data;
                             }
                         }
                         self::$files_to_minify[ $script_tag_number + $extras     ] = substr( $filename_pre,  strlen( ABSPATH ) );
