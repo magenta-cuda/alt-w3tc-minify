@@ -1,15 +1,3 @@
-# Update of December 2019
-
-## The YUI Compressor does not work.
-
-After unsuccessfully trying to configure JavaScript minification to use the "YUI Compressor"
-I read the source code and found a very serious coding error that totally prevents the
-"YUI Compressor" from running. This means that the "YUI Compressor" feature of W3TC (version
-0.11.0) was never
-tested as it would have been very obvious that it is completely broken. There is something
-seriously wrong with quality assurance at W3TC. I don't think they are doing any automated
-testing. For an application of this size that has to be absolute necessary.
-
 # Update of November 2019
 
 In November 2019 W3TC released a new version 0.11.0. With respect to JavaScript
