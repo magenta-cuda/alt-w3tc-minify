@@ -1390,6 +1390,30 @@ EOD
             wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
             wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
         }
+        set_exception_handler( function( $ex ) {
+            error_log( 'Exception:$ex=' . print_r( $ex, true ) );
+        } );
+        error_log( 'register_shutdown_function():called' );
+        register_shutdown_function( function( ) {
+            $headers = getallheaders();
+            error_log( 'getallheaders()=' . print_r( $headers, true ) );
+            $response_headers = apache_response_headers( );
+            error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
+            $response_code = http_response_code( );
+            error_log( 'http_response_code()=' . $response_code );
+            if ( $response_code == 500 ) {
+                $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+                $parsed = parse_url( $url );
+                $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
+                if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
+                    # This is a failed HTTP request for a W3TC minified file.
+                    error_log( "HTTP request for {$_SERVER['REQUEST_URI']} failed." );
+                    $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
+                    error_log( "HTTP request for $filename failed." );
+                    // TODO: How should we handle this?
+                }
+            }
+        } );
         return self::$auto_minify;
     }   # public static function monitor_minify_autojs() {
     public static function purge_auto_minify_cache() {
@@ -1505,12 +1529,14 @@ if ( defined( 'WP_ADMIN' ) ) {
         }
     } );
 } else {
-    add_action( 'wp_loaded', function() {
+    // add_action( 'wp_loaded', function() {
+    add_action( 'init', function() {
         include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
         if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
             MC_Alt_W3TC_Minify::init();
         }
-    } );
+    // } );
+    }, 9 );
 }
 # Below for unit testing only.
 if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'MC_DEBUG' ) && MC_DEBUG ) {
