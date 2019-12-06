@@ -1407,10 +1407,12 @@ EOD
                 $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
                 if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
                     # This is a failed HTTP request for a W3TC minified file.
-                    error_log( "HTTP request for {$_SERVER['REQUEST_URI']} failed." );
+                    error_log( "HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
                     $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
-                    error_log( "HTTP request for $filename failed." );
+                    error_log( "HTTP request for minified file \"$filename\" failed." );
                     // TODO: How should we handle this?
+                    // TODO: For now just display an admin notice.
+                    self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
                 }
             }
         } );
@@ -1530,6 +1532,7 @@ if ( defined( 'WP_ADMIN' ) ) {
     } );
 } else {
     // add_action( 'wp_loaded', function() {
+    # MC_Alt_W3TC_Minify::init() must run before Minify_Plugin::init()
     add_action( 'init', function() {
         include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
         if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
