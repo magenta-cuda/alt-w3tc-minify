@@ -1,3 +1,16 @@
+# Update of December 2019
+
+## The YUI Compressor does not always work.
+
+After unsuccessfully trying to get JavaScript minification using the "YUI Compressor" to work
+I read the source code and found a very serious coding problem.  Errors from the "YUI Compressor"
+are not handled correctly. This prevents the server from sending a valid response for a request
+for a minified JavaScript file. This means that the "YUI Compressor" feature of W3TC (version
+0.11.0) was never rigorously tested as it would have been very obvious that it does not work
+on some very common JavaScript files. There is something seriously wrong with quality assurance
+at W3TC. I don't think they are doing any automated testing. For an application of this size that
+has to be an absolute necessity.
+
 # Update of November 2019
 
 In November 2019 W3TC released a new version 0.11.0. With respect to JavaScript
