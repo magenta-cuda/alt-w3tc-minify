@@ -1532,6 +1532,34 @@ EOD
         }
         return FALSE;
     }
+    # check_if_minified_javascript() tries to determine if a JavaScript file has already been minified.
+    # It simply looks at the length of variable names.
+    private static function check_if_minified_javascript( $buffer ) {
+        if ( preg_match_all( '#var\s([^;]+)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
+            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
+            self::print_r( $matches, '$matches' );
+            foreach ( $matches[0] as $match ) {
+                # TODO: may not work with ES6?
+                if ( preg_match_all( '#(\w+)\s*(=|;)#', $match, $names, PREG_PATTERN_ORDER ) ) {
+                    error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
+                    self::print_r( $names, '$names' );
+                    $count        = 0;
+                    $total_length = 0;
+                    $max          = 0;
+                    foreach ( $names[0] as $name ) {
+                        ++$count;
+                        $length = strlen( $name );
+                        $total_length +=  $length;
+                        if ( $length > $max ) {
+                            $max = $length;
+                        }
+                    }
+                    return $max < 4 && $total_length / $count < 3;
+                }
+            }
+        }
+        return NULL;
+    }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
     private static function non_short_circuit_or( ...$conditions ) {
