@@ -1399,8 +1399,18 @@ EOD
                 self::print_r( $ob_status, '$ob_status' );
                 $response_code = http_response_code( );
                 error_log( 'ob_start():callback():http_response_code()=' . $response_code );
-                $buffer = ob_get_contents( );
-                error_log( 'ob_start():callback()::$buffer=' . $buffer . '#####' );
+                if ( $response_code == 500 ) {
+                    $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+                    $parsed = parse_url( $url );
+                    $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
+                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
+                        $buffer = ob_get_contents( );
+                        error_log( 'ob_start():callback()::$buffer=' . $buffer . '#####' );
+                        http_response_code( 200 );
+                        # TODO: replace with raw unminified file
+                        return 'TODO: replace with raw unminified file';
+                    }
+                }
                 return $buffer;
            } );
         }
@@ -1409,7 +1419,8 @@ EOD
             error_log( 'Exception:$ex=' . print_r( $ex, true ) );
         } );
         error_log( 'register_shutdown_function():called' );
-        register_shutdown_function( function( ) use ( $ob_level ) {
+        register_shutdown_function( function( ) {
+            # The following shows that when shutdown functions are called output buffering has already been completely unwound.
             $ob_status = ob_get_status( TRUE );
             error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
             $headers = getallheaders();
@@ -1430,10 +1441,6 @@ EOD
                     // TODO: How should we handle this?
                     // TODO: For now just display an admin notice.
                     self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
-                    if ( ob_get_level() === $ob_level ) {
-                        $buffer = ob_get_contents( );
-                        error_log( 'register_shutdown_function():callback():$buffer=' . $buffer . '#####' );
-                    }
                 }
             }
         } );
