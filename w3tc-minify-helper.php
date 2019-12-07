@@ -1624,7 +1624,8 @@ EOD
             $done_objects = [];
         }
     }
-    # The following is for unit testing using WP-CLI.
+    # The following is for unit testing MC_Alt_W3TC_Minify::check_if_minified_javascript() using WP-CLI.
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify::wp_cli_test_check_if_minified_javascript("xxx.js");'
     public static function wp_cli_test_check_if_minified_javascript( $file ) {
         $buffer = file_get_contents( $file );
         $ret    = self::check_if_minified_javascript( $buffer );
