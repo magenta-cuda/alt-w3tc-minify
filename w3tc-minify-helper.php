@@ -1409,7 +1409,7 @@ EOD
                         http_response_code( 200 );
                         # TODO: replace with raw unminified file
                         # The sources for the minified file are in Minify0_Minify::$_controller->sources.
-                        # Unfortunately, they are not accessible as the following print_r() shows..
+                        # Unfortunately, they are not accessible as the following print_r() shows.
                         # error_log( 'ob_start():callback():' );
                         # self::print_r( Minify0_Minify::$_controller->sources, 'Minify0_Minify::$_controller->sources' );
                         # Fatal error: Uncaught Error: Cannot access protected property Minify0_Minify::$_controller
@@ -1417,6 +1417,50 @@ EOD
                         error_log( 'ob_start():callback():' );
                         self::print_r( $_GET, '$_GET' );
                         # TODO: construct Minify0_Minify::$_controller->sources using $_GET[].
+                        # The following extracted from Minify_MinifiedFileRequestHandler::process().
+                        # TODO: Verify that Minify_MinifiedFileRequestHandler::process() is always called with the default value for $quiet.
+                        $quiet         = FALSE;
+                        $config        = \W3TC\Dispatcher::config();
+                        $browsercache  = $config->get_boolean( 'browsercache.enabled' );
+                        $serve_options = array_merge( $config->get_array( 'minify.options' ), array(
+                                'debug' => $config->get_boolean( 'minify.debug' ),
+                                'maxAge' => $config->get_integer( 'browsercache.cssjs.lifetime' ),
+                                'encodeOutput' => ( $browsercache &&
+                                    !defined( 'W3TC_PAGECACHE_OUTPUT_COMPRESSION_OFF' ) &&
+                                    !$quiet &&
+                                    ( $config->get_boolean( 'browsercache.cssjs.compression' ) ||
+                                    $config->get_boolean( 'browsercache.cssjs.brotli' ) ) ),
+                                'bubbleCssImports' => ( $config->get_string( 'minify.css.imports' ) == 'bubble' ),
+                                'processCssImports' => ( $config->get_string( 'minify.css.imports' ) == 'process' ),
+                                'cacheHeaders' => array(
+                                    'use_etag' => ( $browsercache && $config->get_boolean( 'browsercache.cssjs.etag' ) ),
+                                    'expires_enabled' => ( $browsercache && $config->get_boolean( 'browsercache.cssjs.expires' ) ),
+                                    'cacheheaders_enabled' => ( $browsercache && $config->get_boolean( 'browsercache.cssjs.cache.control' ) ),
+                                    'cacheheaders' => $config->get_string( 'browsercache.cssjs.cache.policy' )
+                                ),
+                                'disable_304' => $quiet,   // when requested for service needs - need content instead of 304
+                                'quiet' => $quiet
+                            ) );
+/*
+ *                      TODO: The following will be really hard to do. Does $controller->setupSources() really use this?
+                        if ( $hash ) {
+                        } else {
+                            $serve_options['minApp']['groups'] = $this->get_groups( $theme, $template, $type );
+                        }
+ */
+                        # The following members of $serve_options is not used by $controller->setupSources() so don't need to set them.
+                        # $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
+                        # $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
+                        error_log( 'ob_start():callback():' );
+                        self::print_r( $serve_options, '$serve_options' );
+
+/*
+                        $controller = new Minify_Controller_MinApp( );
+                        $controller->setupSources( $serve_options );
+                        error_log( 'ob_start():callback():' );
+                        self::print_r( $controller->sources, '$controller->sources' );
+ */
+                        # TODO: return unminified files which may be a subset of $controller->sources.
                         return 'TODO: replace with raw unminified file';
                     }
                 }
