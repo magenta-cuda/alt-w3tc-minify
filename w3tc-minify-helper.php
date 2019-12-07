@@ -1535,18 +1535,21 @@ EOD
     # check_if_minified_javascript() tries to determine if a JavaScript file has already been minified.
     # It simply looks at the length of variable names.
     private static function check_if_minified_javascript( $buffer ) {
-        if ( preg_match_all( '#var\s([^;]+)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
+        if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
             error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
-            self::print_r( $matches, '$matches' );
-            foreach ( $matches[0] as $match ) {
+            self::print_r( $matches[1], '$matches[1]' );
+            $count        = 0;
+            $total_length = 0;
+            $max          = 0;
+            foreach ( $matches[1] as $match ) {
                 # TODO: may not work with ES6?
+                # TODO: fails on features="left="+left+",top="+top+",width="+width+",height="+height+",location=0,resizable,scrollbars,menubar=0";
+                # TODO: fails on height=480;
+                # TODO: fails on url=permalink[0].href;
                 if ( preg_match_all( '#(\w+)\s*(=|;)#', $match, $names, PREG_PATTERN_ORDER ) ) {
                     error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
-                    self::print_r( $names, '$names' );
-                    $count        = 0;
-                    $total_length = 0;
-                    $max          = 0;
-                    foreach ( $names[0] as $name ) {
+                    self::print_r( $names[1], '$names[1]' );
+                    foreach ( $names[1] as $name ) {
                         ++$count;
                         $length = strlen( $name );
                         $total_length +=  $length;
@@ -1554,9 +1557,12 @@ EOD
                             $max = $length;
                         }
                     }
-                    return $max < 4 && $total_length / $count < 3;
                 }
             }
+            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$count='        . $count );
+            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$total_length=' . $total_length );
+            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$max='          . $max );
+            return $count > 0 ? ( $max < 4 && $total_length / $count < 3 ) : NULL;
         }
         return NULL;
     }
@@ -1618,7 +1624,13 @@ EOD
             $done_objects = [];
         }
     }
-}
+    # The following is for unit testing using WP-CLI.
+    public static function wp_cli_test_check_if_minified_javascript( $file ) {
+        $buffer = file_get_contents( $file );
+        $ret    = self::check_if_minified_javascript( $buffer );
+        echo 'check_if_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
+    }
+}   # MC_Alt_W3TC_Minify
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
     add_action( 'admin_init', function() {
