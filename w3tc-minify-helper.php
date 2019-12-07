@@ -1441,25 +1441,20 @@ EOD
                                 'disable_304' => $quiet,   // when requested for service needs - need content instead of 304
                                 'quiet' => $quiet
                             ) );
-/*
- *                      TODO: The following will be really hard to do. Does $controller->setupSources() really use this?
-                        if ( $hash ) {
-                        } else {
-                            $serve_options['minApp']['groups'] = $this->get_groups( $theme, $template, $type );
+                        if ( array_key_exists( 'g', $_GET ) ) {
+                            # I don't think this case will ever happen, so don't need to set the following.
+                            # $serve_options['minApp']['groups'] = $this->get_groups( $theme, $template, $type );
+                            error_log( 'MC_Alt_W3TC_Minify Error: ob_start():callback(): $_GET["g"] exists!' );
                         }
- */
                         # The following members of $serve_options is not used by $controller->setupSources() so don't need to set them.
                         # $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
                         # $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
                         error_log( 'ob_start():callback():' );
                         self::print_r( $serve_options, '$serve_options' );
-
-/*
                         $controller = new Minify_Controller_MinApp( );
                         $controller->setupSources( $serve_options );
                         error_log( 'ob_start():callback():' );
                         self::print_r( $controller->sources, '$controller->sources' );
- */
                         # TODO: return unminified files which may be a subset of $controller->sources.
                         return 'TODO: replace with raw unminified file';
                     }
