@@ -1405,9 +1405,18 @@ EOD
                     $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
                     if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
                         $buffer = ob_get_contents( );
-                        error_log( 'ob_start():callback()::$buffer=' . $buffer . '#####' );
+                        error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
                         http_response_code( 200 );
                         # TODO: replace with raw unminified file
+                        # The sources for the minified file are in Minify0_Minify::$_controller->sources.
+                        # Unfortunately, they are not accessible as the following print_r() shows..
+                        # error_log( 'ob_start():callback():' );
+                        # self::print_r( Minify0_Minify::$_controller->sources, 'Minify0_Minify::$_controller->sources' );
+                        # Fatal error: Uncaught Error: Cannot access protected property Minify0_Minify::$_controller
+                        # However, they are constructed using $_GET[] which is accessible.
+                        error_log( 'ob_start():callback():' );
+                        self::print_r( $_GET, '$_GET' );
+                        # TODO: construct Minify0_Minify::$_controller->sources using $_GET[].
                         return 'TODO: replace with raw unminified file';
                     }
                 }
