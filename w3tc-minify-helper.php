@@ -1390,29 +1390,50 @@ EOD
             wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
             wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
         }
+        $ob_status = ob_get_status( TRUE );
+        error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, true ) );
+        if ( ( $ob_level = ob_get_level() ) <= 2 ) {
+            ob_start( function( $buffer ) {
+                $ob_status = ob_get_status( TRUE );
+                error_log( 'ob_start():callback():' );
+                self::print_r( $ob_status, '$ob_status' );
+                $response_code = http_response_code( );
+                error_log( 'ob_start():callback():http_response_code()=' . $response_code );
+                $buffer = ob_get_contents( );
+                error_log( 'ob_start():callback()::$buffer=' . $buffer . '#####' );
+                return $buffer;
+           } );
+        }
+        error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
         set_exception_handler( function( $ex ) {
             error_log( 'Exception:$ex=' . print_r( $ex, true ) );
         } );
         error_log( 'register_shutdown_function():called' );
-        register_shutdown_function( function( ) {
+        register_shutdown_function( function( ) use ( $ob_level ) {
+            $ob_status = ob_get_status( TRUE );
+            error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
             $headers = getallheaders();
             error_log( 'getallheaders()=' . print_r( $headers, true ) );
             $response_headers = apache_response_headers( );
             error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
             $response_code = http_response_code( );
-            error_log( 'http_response_code()=' . $response_code );
+            error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
             if ( $response_code == 500 ) {
                 $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
                 $parsed = parse_url( $url );
                 $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
                 if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
                     # This is a failed HTTP request for a W3TC minified file.
-                    error_log( "HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
+                    error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
                     $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
-                    error_log( "HTTP request for minified file \"$filename\" failed." );
+                    error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
                     // TODO: How should we handle this?
                     // TODO: For now just display an admin notice.
                     self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
+                    if ( ob_get_level() === $ob_level ) {
+                        $buffer = ob_get_contents( );
+                        error_log( 'register_shutdown_function():callback():$buffer=' . $buffer . '#####' );
+                    }
                 }
             }
         } );
