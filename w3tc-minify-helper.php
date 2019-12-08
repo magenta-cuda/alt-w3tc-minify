@@ -133,7 +133,8 @@
  *
  */
 
-define( 'MC_DEBUG', TRUE );   # TODO: set to FALSE for production
+define( 'MC_DEBUG',       TRUE );   # TODO: set to FALSE for production
+define( 'MC_WP_CLI_TEST', TRUE );   # TODO: This enables WP-CLI unit testing, disable for production
 
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
@@ -1534,7 +1535,7 @@ EOD
     }
     # check_if_minified_javascript() tries to determine if a JavaScript file has already been minified.
     # It simply looks at the length of variable names.
-    private static function check_if_minified_javascript( $buffer ) {
+    protected static function check_if_minified_javascript( $buffer ) {
         if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
             error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
             self::print_r( $matches[1], '$matches[1]' );
@@ -1567,7 +1568,7 @@ EOD
         }
         return NULL;
     }
-    private static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
+    protected static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
         while ( $offset < $length ) {
             $offset = self::parse_js_spaces( $buffer, $offset, $length );
             $offset = self::parse_js_name( $buffer, $offset, $length, $statistics );
@@ -1739,28 +1740,38 @@ EOD
             $done_objects = [];
         }
     }
+}   # MC_Alt_W3TC_Minify
+
+if ( defined( 'MC_WP_CLI_TEST' ) && MC_WP_CLI_TEST ) {
+
+class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     # The following is for unit testing MC_Alt_W3TC_Minify::check_if_minified_javascript() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify::wp_cli_test_check_if_minified_javascript("xxx.js");'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_check_if_minified_javascript("xxx.js");'
     public static function wp_cli_test_check_if_minified_javascript( $file ) {
         $buffer = file_get_contents( $file );
         $ret    = self::check_if_minified_javascript( $buffer );
         echo 'check_if_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify::wp_cli_test_parse_js_var_statement();'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();'
     public static function wp_cli_test_parse_js_var_statement( ) {
         while ( TRUE ) {
-            $buffer = trim( fgets( STDIN ), "\r\n" );
-            $length = strlen( $buffer );
-            if ( $length === 0 ) {
-                return;
+            fwrite( STDERR, '> ' );
+            if ( ( $buffer = fgets( STDIN, 1024 ) ) === FALSE ) {
+                break;
             }
+            $buffer = trim( $buffer, "\r\n" );
+            $length = strlen( $buffer );
             $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
             self::parse_js_var_statement( $buffer, 0, $length, $statistics );
-            print_r( $statistics );
+            $output = print_r( $statistics, TRUE );
+            fwrite( STDERR, $output );
         }
     }
-}   # MC_Alt_W3TC_Minify
+}   # MC_Alt_W3TC_Minify_Unit_Tester
+
+}   # if ( defined( 'MC_WP_CLI_TEST' ) && MC_WP_CLI_TEST ) {
+
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
     add_action( 'admin_init', function() {
