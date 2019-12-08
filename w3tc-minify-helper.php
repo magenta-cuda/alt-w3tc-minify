@@ -1542,6 +1542,7 @@ EOD
             $total_length = 0;
             $max          = 0;
             foreach ( $matches[1] as $match ) {
+                self::parse_var_statement( $match, 0, $statistics );
                 # TODO: may not work with ES6?
                 # TODO: fails on features="left="+left+",top="+top+",width="+width+",height="+height+",location=0,resizable,scrollbars,menubar=0";
                 # TODO: fails on height=480;
@@ -1565,6 +1566,105 @@ EOD
             return $count > 0 ? ( $max < 4 && $total_length / $count < 3 ) : NULL;
         }
         return NULL;
+    }
+    private static function parse_var_statement( $buffer, $offset, $length, &$statistics ) {
+        while ( $offset < $length ) {
+            $offset = parse_spaces( $buffer, $offset, $length );
+            $offset = parse_name( $buffer, $offset, $length, $statistics );
+            $offset = parse_spaces( $buffer, $offset, $length );
+            $char   = $buffer[ $offset ];
+            if ( $char === '=' ) {
+                $offset = parse_expression( $buffer, $offset, $length );
+            }
+            $char   = $buffer[ $offset ];
+            if ( $char === ',' ) {
+                ++$offset;
+                continue;
+            }
+            if ( $char === ';' ) {
+                ++$offset;
+                if ( $offset !== $length ) {
+                    # For a correct var statement this should not happen.
+                    $offset = $length;
+                }
+                return $offset;
+            }
+        }
+        # For a correct var statement this should not happen.
+        return $offset;
+    }
+    private static function parse_name( $buffer, $offset, $length, &$statistics ) {
+        if ( $buffer[ $offset ] === '$' ) {
+            ++$offset;
+        } else {
+            # For a correct var statement this should not happen.
+            return $length;
+        }
+        $name = '';
+        while ( $offset < $length ) {
+            $char = $buffer[ $offset ];
+            if ( ctype_alnum( $char ) ) {
+                $name .= $char;
+                ++$offset;
+                continue;
+            }
+            $statistics->count        += 1;
+            $statistics->total_length += strlen( $name );
+            break;
+        }
+        return $offset;
+    }
+    private static function parse_expression( $buffer, $offset, $length ) {
+        while ( $offset < $length ) {
+            $char = $buffer[ $offset ];
+            if ( $char === ',' || $char === ';' ) {
+                return $offset;
+            }
+            if ( $char === '\'' || $char === '"' ) {
+                $offset = parse_string( $buffer, $offset + 1, $length, $char );
+                continue;
+            }
+            if ( $char === '{' || $char === '[' ) {
+                $offset = parse_group( $buffer, $offset + 1, $length, $char );
+                continue;
+            }
+            ++$offset;
+        }
+        # For a correct var statement this should not happen.
+        return $offset;
+    }
+    private static function parse_string( $buffer, $offset, $length, $delim ) {
+        while ( $offset < $length ) {
+        }
+    }
+    private static function parse_group( $buffer, $offset, $length, $delim ) {
+        while ( $offset < $length ) {
+            $char = $buffer[ $offset ];
+            if ( $char === $delim ) {
+                return $offset + 1;
+            }
+            if ( $char === '\'' || $char === '"' ) {
+                $offset = parse_string( $buffer, $offset + 1, $length, $char );
+                continue;
+            }
+            if ( $char === '{' || $char === '[' ) {
+                $offset = parse_group( $buffer, $offset + 1, $length, $char );
+                continue;
+            }
+            ++$offset;
+        }
+        # For a correct var statement this should not happen.
+        return $offset;
+    }
+    private static function parse_spaces( $buffer, $offset, $length ) {
+        while ( $offset < $length ) {
+            if ( ctype_space( $buffer[ $offset ] ) ) {
+                ++$offset;
+                continue;
+            }
+            break;
+        }
+        return $offset;
     }
     # non_short_circuit_or() implements an or where all conditions are always evaluated.
     # This is useful when the conditions have side effects.
