@@ -1542,7 +1542,7 @@ EOD
             $total_length = 0;
             $max          = 0;
             foreach ( $matches[1] as $match ) {
-                self::parse_var_statement( $match, 0, $statistics );
+                self::parse_js_var_statement( $match, 0, $statistics );
                 # TODO: may not work with ES6?
                 # TODO: fails on features="left="+left+",top="+top+",width="+width+",height="+height+",location=0,resizable,scrollbars,menubar=0";
                 # TODO: fails on height=480;
@@ -1567,14 +1567,14 @@ EOD
         }
         return NULL;
     }
-    private static function parse_var_statement( $buffer, $offset, $length, &$statistics ) {
+    private static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
         while ( $offset < $length ) {
-            $offset = parse_spaces( $buffer, $offset, $length );
-            $offset = parse_name( $buffer, $offset, $length, $statistics );
-            $offset = parse_spaces( $buffer, $offset, $length );
+            $offset = self::parse_js_spaces( $buffer, $offset, $length );
+            $offset = self::parse_js_name( $buffer, $offset, $length, $statistics );
+            $offset = self::parse_js_spaces( $buffer, $offset, $length );
             $char   = $buffer[ $offset ];
             if ( $char === '=' ) {
-                $offset = parse_expression( $buffer, $offset, $length );
+                $offset = self::parse_js_expression( $buffer, $offset, $length );
             }
             $char   = $buffer[ $offset ];
             if ( $char === ',' ) {
@@ -1593,39 +1593,47 @@ EOD
         # For a correct var statement this should not happen.
         return $offset;
     }
-    private static function parse_name( $buffer, $offset, $length, &$statistics ) {
-        if ( $buffer[ $offset ] === '$' ) {
+    private static function parse_js_name( $buffer, $offset, $length, $statistics ) {
+        $char = $buffer[ $offset ];
+        if ( ctype_alpha( $char ) || $char === '$' || $char === '_' ) {
+            $name = $char;
             ++$offset;
         } else {
             # For a correct var statement this should not happen.
             return $length;
         }
-        $name = '';
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
-            if ( ctype_alnum( $char ) ) {
+            if ( ctype_alnum( $char ) || $char === '_' ) {
                 $name .= $char;
                 ++$offset;
                 continue;
             }
-            $statistics->count        += 1;
-            $statistics->total_length += strlen( $name );
             break;
+        }
+        $statistics->count        += 1;
+        $name_length               = strlen( $name );
+        $statistics->total_length += $name_length;
+        if ( $statistics->max < $name_length ) {
+            $statistics->max = $name_length;
+        }
+        if ( property_exists( $statistics, 'names' ) ) {
+            $statistics->names[] = $name;
         }
         return $offset;
     }
-    private static function parse_expression( $buffer, $offset, $length ) {
+    private static function parse_js_expression( $buffer, $offset, $length ) {
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === ',' || $char === ';' ) {
                 return $offset;
             }
             if ( $char === '\'' || $char === '"' ) {
-                $offset = parse_string( $buffer, $offset + 1, $length, $char );
+                $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
             if ( $char === '{' || $char === '[' ) {
-                $offset = parse_group( $buffer, $offset + 1, $length, $char );
+                $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
             ++$offset;
@@ -1633,22 +1641,29 @@ EOD
         # For a correct var statement this should not happen.
         return $offset;
     }
-    private static function parse_string( $buffer, $offset, $length, $delim ) {
+    private static function parse_js_string( $buffer, $offset, $length, $delim ) {
         while ( $offset < $length ) {
+            $pos = strpos( $buffer, $delim, $offset );
+            if ( $pos > $offset && $buffer[ $pos - 1 ] === '\\' ) {
+                $offset = $pos + 1;
+                continue;
+            }
+            break;
         }
+        return $pos + 1;
     }
-    private static function parse_group( $buffer, $offset, $length, $delim ) {
+    private static function parse_js_group( $buffer, $offset, $length, $delim ) {
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === $delim ) {
                 return $offset + 1;
             }
             if ( $char === '\'' || $char === '"' ) {
-                $offset = parse_string( $buffer, $offset + 1, $length, $char );
+                $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
             if ( $char === '{' || $char === '[' ) {
-                $offset = parse_group( $buffer, $offset + 1, $length, $char );
+                $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
             ++$offset;
@@ -1656,7 +1671,7 @@ EOD
         # For a correct var statement this should not happen.
         return $offset;
     }
-    private static function parse_spaces( $buffer, $offset, $length ) {
+    private static function parse_js_spaces( $buffer, $offset, $length ) {
         while ( $offset < $length ) {
             if ( ctype_space( $buffer[ $offset ] ) ) {
                 ++$offset;
@@ -1730,6 +1745,20 @@ EOD
         $buffer = file_get_contents( $file );
         $ret    = self::check_if_minified_javascript( $buffer );
         echo 'check_if_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
+    }
+    # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify::wp_cli_test_parse_js_var_statement();'
+    public static function wp_cli_test_parse_js_var_statement( ) {
+        while ( TRUE ) {
+            $buffer = trim( fgets( STDIN ), "\r\n" );
+            $length = strlen( $buffer );
+            if ( $length === 0 ) {
+                return;
+            }
+            $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
+            self::parse_js_var_statement( $buffer, 0, $length, $statistics );
+            print_r( $statistics );
+        }
     }
 }   # MC_Alt_W3TC_Minify
 # Abort execution if the W3 Total Cache plugin is not activated.
