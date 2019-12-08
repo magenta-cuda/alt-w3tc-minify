@@ -133,8 +133,15 @@
  *
  */
 
-define( 'MC_DEBUG',       TRUE );   # TODO: set to FALSE for production
-define( 'MC_WP_CLI_TEST', TRUE );   # TODO: This enables WP-CLI unit testing, disable for production
+#                                                  1234567812345678
+define( 'MC_DEBUG_OFF',                          0x0000000000000000 );
+define( 'MC_DEBUG_WP_CLI_UNIT_TESTER',           0x0000000000000001 );   # This enables WP-CLI unit testing
+define( 'MC_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER', 0x0000000000000002 );
+define( 'MC_DEBUG_MINIFIER_UNIT_TEST',           0x0000000000000004 );
+define( 'MC_DEBUG',   MC_DEBUG_OFF
+                    | MC_DEBUG_WP_CLI_UNIT_TESTER
+                    | MC_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
+      );                            # TODO: set to MC_DEBUG_OFF for production
 
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
@@ -1537,34 +1544,24 @@ EOD
     # It simply looks at the length of variable names.
     protected static function check_if_minified_javascript( $buffer ) {
         if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
-            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
-            self::print_r( $matches[1], '$matches[1]' );
-            $count        = 0;
-            $total_length = 0;
-            $max          = 0;
+            if ( MC_DEBUG & MC_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
+                self::print_r( $matches[1], '$matches[1]' );
+                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
+            } else {
+                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
+            }
             foreach ( $matches[1] as $match ) {
                 self::parse_js_var_statement( $match, 0, $statistics );
-                # TODO: may not work with ES6?
-                # TODO: fails on features="left="+left+",top="+top+",width="+width+",height="+height+",location=0,resizable,scrollbars,menubar=0";
-                # TODO: fails on height=480;
-                # TODO: fails on url=permalink[0].href;
-                if ( preg_match_all( '#(\w+)\s*(=|;)#', $match, $names, PREG_PATTERN_ORDER ) ) {
-                    error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
-                    self::print_r( $names[1], '$names[1]' );
-                    foreach ( $names[1] as $name ) {
-                        ++$count;
-                        $length = strlen( $name );
-                        $total_length +=  $length;
-                        if ( $length > $max ) {
-                            $max = $length;
-                        }
-                    }
-                }
             }
-            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$count='        . $count );
-            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$total_length=' . $total_length );
-            error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$max='          . $max );
-            return $count > 0 ? ( $max < 4 && $total_length / $count < 3 ) : NULL;
+            if ( MC_DEBUG & MC_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->count='        . $statistics->count );
+                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->total_length=' . $statistics->total_length );
+                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->max='          . $statistics->max );
+                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
+                self::print_r( $statistics->names, '$statistics->names' );
+            }
+            return $statistics->count > 0 ? ( $statistics->max < 4 && $statistics->total_length / $statistics->count < 3 ) : NULL;
         }
         return NULL;
     }
@@ -1742,7 +1739,7 @@ EOD
     }
 }   # MC_Alt_W3TC_Minify
 
-if ( defined( 'MC_WP_CLI_TEST' ) && MC_WP_CLI_TEST ) {
+if ( MC_DEBUG & MC_DEBUG_WP_CLI_UNIT_TESTER ) {
 
 class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     # The following is for unit testing MC_Alt_W3TC_Minify::check_if_minified_javascript() using WP-CLI.
@@ -1770,7 +1767,7 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     }
 }   # MC_Alt_W3TC_Minify_Unit_Tester
 
-}   # if ( defined( 'MC_WP_CLI_TEST' ) && MC_WP_CLI_TEST ) {
+}   # if ( MC_DEBUG & MC_DEBUG_WP_CLI_UNIT_TESTER ) {
 
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
@@ -1799,7 +1796,7 @@ if ( defined( 'WP_ADMIN' ) ) {
     }, 9 );
 }
 # Below for unit testing only.
-if ( defined( 'WP_DEBUG' ) && WP_DEBUG && defined( 'MC_DEBUG' ) && MC_DEBUG ) {
+if ( MC_DEBUG & MC_DEBUG_MINIFIER_UNIT_TEST ) {
     if ( ! defined( 'WP_ADMIN' ) ) {
         add_action( 'wp_loaded', function() {
             if ( ! is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE )
@@ -1828,4 +1825,4 @@ EOD;
             # Also verify that files have been created in ".../wp-content/cache/minify".
         } );
     }
-}
+}   # if ( MC_DEBUG & MC_DEBUG_MINIFIER_UNIT_TEST ) {
