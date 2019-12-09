@@ -1715,31 +1715,28 @@ EOD
     }
     # combine_minify() is adapted from Minify0_Minify::_combineMinify()
     private static function combine_minify( $options, $controller ) {
-/* TODO: fix this
-        $type = self::$_options['contentType']; // ease readability
+        $type = $options['contentType'];   # $type should always be Minify0_Minify::TYPE_JS
 
         // when combining scripts, make sure all statements separated and
         // trailing single line comment is terminated
-        $implodeSeparator = ($type === self::TYPE_JS)
-            ? "\n;"
-            : '';
+        $implodeSeparator = "\n;";
         // allow the user to pass a particular array of options to each
         // minifier (designated by type). source objects may still override
         // these
-        $defaultOptions = isset(self::$_options['minifierOptions'][$type])
-            ? self::$_options['minifierOptions'][$type]
+        $defaultOptions = isset( $options['minifierOptions'][$type] )
+            ? $options['minifierOptions'][$type]
             : array();
         // if minifier not set, default is no minification. source objects
         // may still override this
-        $defaultMinifier = isset(self::$_options['minifiers'][$type])
-            ? self::$_options['minifiers'][$type]
+        $defaultMinifier = isset( $options['minifiers'][$type])
+            ? $options['minifiers'][$type]
             : false;
 
         // process groups of sources with identical minifiers/options
         $content = array();
         $originalLength = 0;
         $i = 0;
-        $l = count(self::$_controller->sources);
+        $l = count( $controller->sources );
         $groupToProcessTogether = array();
         $lastMinifier = null;
         $lastOptions = null;
@@ -1747,13 +1744,13 @@ EOD
             // get next source
             $source = null;
             if ($i < $l) {
-                $source = self::$_controller->sources[$i];
+                $source = $controller->sources[$i];
                 // @var Minify_Source $source
                 $sourceContent = $source->getContent();
                 $originalLength += strlen($sourceContent);
 
-                error_log( 'Minify0_Minify::_combineMinify()::(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
-                error_log( 'Minify0_Minify::_combineMinify()::gettype( $source->minifier )=' . gettype( $source->minifier ) );
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify()::(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify()::gettype( $source->minifier )=' . gettype( $source->minifier ) );
 
                 // allow the source to override our minifier and options
                 $minifier = (null !== $source->minifier)
@@ -1764,15 +1761,17 @@ EOD
                     : $defaultOptions;
             }
 
-			error_log( 'Minify0_Minify::_combineMinify():$source=' . print_r( $source, true ) );
-			error_log( 'Minify0_Minify::_combineMinify():$minifier=' . print_r( $minifier, true ) );
-            error_log( 'Minify0_Minify::_combineMinify():$options=' . print_r( $options, true ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+            self::print_r( $source,   '$source' );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+            self::print_r( $minifier, '$minifier' );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+            self::print_r( $options,  '$options' );
 
             // do we need to process our group right now?
             if ($i > 0                               // yes, we have at least the first group populated
                 && (
                     ! $source                        // yes, we ran out of sources
-                    || $type === self::TYPE_CSS      // yes, to process CSS individually (avoiding PCRE bugs/limits)
                     || $minifier !== $lastMinifier   // yes, minifier changed
                     || $options !== $lastOptions)    // yes, options changed
                 )
@@ -1781,11 +1780,13 @@ EOD
                 $imploded = implode($implodeSeparator, $groupToProcessTogether);
                 $groupToProcessTogether = array();
                 if ($lastMinifier) {
-                    error_log( 'Minify0_Minify::_combineMinify():$lastMinifier=' . print_r( $lastMinifier, true ) );
+                    error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                    self::print_r( $lastMinifier, '$lastMinifier' );
                     try {
                         $content[] = call_user_func($lastMinifier, $imploded, $lastOptions);
                     } catch (Exception $e) {
-                        error_log( 'Minify0_Minify::_combineMinify():$e=' . print_r( $e, true ) );
+                        error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                        self::print_r( $e, '$e' );
                         throw new Exception("Exception in minifier: " . $e->getMessage());
                     }
                 } else {
@@ -1803,22 +1804,17 @@ EOD
 
         $content = implode($implodeSeparator, $content);
 
-        if ($type === self::TYPE_CSS && false !== strpos($content, '@import')) {
-            $content = self::_handleCssImports($content);
-        }
-
         // do any post-processing (esp. for editing build URIs)
-        if (self::$_options['postprocessorRequire']) {
+        if ( FALSE && $options['postprocessorRequire'] ) {   // TODO: PHP Notice:  Undefined index: postprocessorRequire
             require_once self::$_options['postprocessorRequire'];
         }
-        if (self::$_options['postprocessor']) {
-            $content = call_user_func(self::$_options['postprocessor'], $content, $type);
+        if ( FALSE && $options['postprocessor'] ) {   // TODO: PHP Notice:  Undefined index: postprocessor
+            $content = call_user_func( $options['postprocessor'], $content, $type );
         }
         return array(
             'originalLength' => $originalLength,
             'content' => $content
         );
- */
     }   # private static function combine_minify( $options, $controller ) {
     # This print_r() is necessary since the real print_r() uses output buffering and this causes the following error:
     #     PHP Fatal error:  print_r(): Cannot use output buffering in output buffering display handlers ...
