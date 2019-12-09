@@ -1740,34 +1740,22 @@ EOD
             ? $options['minifiers'][$type]
             : false;
 
-        // process groups of sources with identical minifiers/options
-        $content = array();
+        $content        = [];
         $originalLength = 0;
-        $i = 0;
-        $l = count( $controller->sources );
-        $groupToProcessTogether = array();
-        $lastMinifier = null;
-        $lastOptions = null;
-        do {
-            // get next source
-            $source = null;
-            if ($i < $l) {
-                $source = $controller->sources[$i];
-                // @var Minify_Source $source
-                $sourceContent = $source->getContent();
-                $originalLength += strlen($sourceContent);
+        foreach ( $controller->sources as $source ) {
+            $sourceContent   = $source->getContent();
+            $originalLength += strlen($sourceContent);
 
-                error_log( 'MC_Alt_W3TC_Minify::combine_minify()::(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
-                error_log( 'MC_Alt_W3TC_Minify::combine_minify()::gettype( $source->minifier )=' . gettype( $source->minifier ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify()::(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify()::gettype( $source->minifier )=' . gettype( $source->minifier ) );
 
-                // allow the source to override our minifier and options
-                $minifier = (null !== $source->minifier)
-                    ? $source->minifier
-                    : $defaultMinifier;
-                $options = (null !== $source->minifyOptions)
-                    ? array_merge($defaultOptions, $source->minifyOptions)
-                    : $defaultOptions;
-            }
+            // allow the source to override our minifier and options
+            $minifier = (null !== $source->minifier)
+                ? $source->minifier
+                : $defaultMinifier;
+            $options = (null !== $source->minifyOptions)
+                ? array_merge($defaultOptions, $source->minifyOptions)
+                : $defaultOptions;
 
             error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
             self::print_r( $source,   '$source' );
@@ -1776,40 +1764,21 @@ EOD
             error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
             self::print_r( $options,  '$options' );
 
-            // do we need to process our group right now?
-            if ($i > 0                               // yes, we have at least the first group populated
-                && (
-                    ! $source                        // yes, we ran out of sources
-                    || $minifier !== $lastMinifier   // yes, minifier changed
-                    || $options !== $lastOptions)    // yes, options changed
-                )
-            {
-                // minify previous sources with last settings
-                $imploded = implode($implodeSeparator, $groupToProcessTogether);
-                $groupToProcessTogether = array();
-                if ($lastMinifier) {
+            if ( $minifier ) {
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                self::print_r( $minifier, '$minifier' );
+                try {
+                    $minified  = call_user_func( $minifier, $sourceContent, $options );
+                    $content[] = $minified;
+                } catch (Exception $e) {
                     error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                    self::print_r( $lastMinifier, '$lastMinifier' );
-                    try {
-                        $minified  = call_user_func( $lastMinifier, $imploded, $lastOptions );
-                        $content[] = $minified;
-                    } catch (Exception $e) {
-                        error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                        self::print_r( $e, 'Exception $e' );
-                        $content[] = $imploded;
-                    }
-                } else {
-                    $content[] = $imploded;
+                    self::print_r( $e, 'Exception $e' );
+                    $content[] = $sourceContent;
                 }
+            } else {
+                $content[] = $sourceContent;
             }
-            // add content to the group
-            if ($source) {
-                $groupToProcessTogether[] = $sourceContent;
-                $lastMinifier = $minifier;
-                $lastOptions = $options;
-            }
-            $i++;
-        } while ($source);
+        }
 
         $content = implode($implodeSeparator, $content);
 
