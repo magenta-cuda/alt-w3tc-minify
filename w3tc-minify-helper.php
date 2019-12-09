@@ -24,6 +24,9 @@
  */
 
 /*
+ * This plugin contains excerpts fron the plugin "W3 Total Cache" by BoldGrid.
+ * See https://wordpress.org/plugins/w3-total-cache/.
+/*
  * The W3 Total Cache auto minify mode does not work on my web site. The problem
  * is the order of the JavaScript files using the auto minify mode is different
  * from the order without minification. This results in undefined JavaScript
@@ -1486,9 +1489,12 @@ EOD
                             error_log( 'ob_start():callback():' );
                             self::print_r( $controller->sources, '$controller->sources' );
                         }
-                        # TODO: return unminified files which may be a subset of $controller->sources.
-                        $content = self::combine_minify( $options, $controller );
-                        return 'console.log("TODO: replace with raw unminified file");';
+                        # Return the unminified files of $controller->sources.
+                        $content = self::combine_minify( $options, $controller )['content'];
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( 'ob_start():callback():$content=' . $content . '#####' );
+                        }
+                        return $content;
                     }   # if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix
                 }   # if ( $response_code == 500 ) {
                 return $buffer;
@@ -1713,7 +1719,9 @@ EOD
         }
         return FALSE;
     }
-    # combine_minify() is adapted from Minify0_Minify::_combineMinify()
+    # combine_minify() is adapted from Minify0_Minify::_combineMinify().
+    # combine_minify() is called only when Minify0_Minify::_combineMinify() has failed - thrown an exception.
+    # So, the point is to do it differently and avoid throwing the exception.
     private static function combine_minify( $options, $controller ) {
         $type = $options['contentType'];   # $type should always be Minify0_Minify::TYPE_JS
 
@@ -1783,11 +1791,12 @@ EOD
                     error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                     self::print_r( $lastMinifier, '$lastMinifier' );
                     try {
-                        $content[] = call_user_func($lastMinifier, $imploded, $lastOptions);
+                        $minified  = call_user_func( $lastMinifier, $imploded, $lastOptions );
+                        $content[] = $minified;
                     } catch (Exception $e) {
                         error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                        self::print_r( $e, '$e' );
-                        throw new Exception("Exception in minifier: " . $e->getMessage());
+                        self::print_r( $e, 'Exception $e' );
+                        $content[] = $imploded;
                     }
                 } else {
                     $content[] = $imploded;
@@ -1806,7 +1815,7 @@ EOD
 
         // do any post-processing (esp. for editing build URIs)
         if ( FALSE && $options['postprocessorRequire'] ) {   // TODO: PHP Notice:  Undefined index: postprocessorRequire
-            require_once self::$_options['postprocessorRequire'];
+            require_once $options['postprocessorRequire'];
         }
         if ( FALSE && $options['postprocessor'] ) {   // TODO: PHP Notice:  Undefined index: postprocessor
             $content = call_user_func( $options['postprocessor'], $content, $type );
