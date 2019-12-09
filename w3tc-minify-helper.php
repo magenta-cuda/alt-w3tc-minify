@@ -1424,6 +1424,8 @@ EOD
                     $parsed = parse_url( $url );
                     $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
                     if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
+                        # TODO: The following should run only on auto JavaScript minification only, i.e., not on CSS or manual minification.
+                        #       How to insure this?
                         $buffer = ob_get_contents( );
                         error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
                         http_response_code( 200 );
@@ -1462,17 +1464,21 @@ EOD
                                 'quiet' => $quiet
                             ) );
                         if ( array_key_exists( 'g', $_GET ) ) {
-                            # I don't think this case will ever happen, so don't need to set the following.
+                            # This case should not happen in auto JavaScript minification so don't need to set the following.
                             # $serve_options['minApp']['groups'] = $this->get_groups( $theme, $template, $type );
                             error_log( 'MC_Alt_W3TC_Minify Error: ob_start():callback(): $_GET["g"] exists!' );
                         }
-                        # The following members of $serve_options is not used by $controller->setupSources() so don't need to set them.
-                        # $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
-                        # $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
+                        $minifier_type                                    = 'application/x-javascript';
+                        $engine                                           = 'combinejs';
+                        $w3_minifier                                      = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
+                        $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
+                        $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
+                        $controller                                       = new Minify_Controller_MinApp( );
+                        $options                                          = $controller->setupSources( $serve_options );
+                        $options                                          = $controller->analyzeSources( $options );
+                        $options                                          = $controller->mixInDefaultOptions( $options );
                         error_log( 'ob_start():callback():' );
-                        self::print_r( $serve_options, '$serve_options' );
-                        $controller = new Minify_Controller_MinApp( );
-                        $controller->setupSources( $serve_options );
+                        self::print_r( $options, '$options' );
                         error_log( 'ob_start():callback():' );
                         self::print_r( $controller->sources, '$controller->sources' );
                         # TODO: return unminified files which may be a subset of $controller->sources.
