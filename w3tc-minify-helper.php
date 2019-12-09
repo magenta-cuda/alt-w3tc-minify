@@ -1423,11 +1423,12 @@ EOD
                     $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
                     $parsed = parse_url( $url );
                     $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
-                        # TODO: The following should run only on auto JavaScript minification only, i.e., not on CSS or manual minification.
-                        #       How to insure this?
-                        $buffer = ob_get_contents( );
-                        error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
+                    # Verify that the minified file is from an auto JavaScript minification.
+                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix
+                        && array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
+                        }
                         http_response_code( 200 );
                         # TODO: replace with raw unminified file
                         # The sources for the minified file are in Minify0_Minify::$_controller->sources.
@@ -1436,8 +1437,10 @@ EOD
                         # self::print_r( Minify0_Minify::$_controller->sources, 'Minify0_Minify::$_controller->sources' );
                         # Fatal error: Uncaught Error: Cannot access protected property Minify0_Minify::$_controller
                         # However, they are constructed using $_GET[] which is accessible.
-                        error_log( 'ob_start():callback():' );
-                        self::print_r( $_GET, '$_GET' );
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( 'ob_start():callback():' );
+                            self::print_r( $_GET, '$_GET' );
+                        }
                         # TODO: construct Minify0_Minify::$_controller->sources using $_GET[].
                         # The following extracted from Minify_MinifiedFileRequestHandler::process().
                         # TODO: Verify that Minify_MinifiedFileRequestHandler::process() is always called with the default value for $quiet.
@@ -1477,14 +1480,16 @@ EOD
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
-                        error_log( 'ob_start():callback():' );
-                        self::print_r( $options, '$options' );
-                        error_log( 'ob_start():callback():' );
-                        self::print_r( $controller->sources, '$controller->sources' );
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( 'ob_start():callback():' );
+                            self::print_r( $options, '$options' );
+                            error_log( 'ob_start():callback():' );
+                            self::print_r( $controller->sources, '$controller->sources' );
+                        }
                         # TODO: return unminified files which may be a subset of $controller->sources.
                         return 'TODO: replace with raw unminified file';
-                    }
-                }
+                    }   # if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix
+                }   # if ( $response_code == 500 ) {
                 return $buffer;
            } );
         }
