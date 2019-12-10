@@ -1719,6 +1719,18 @@ EOD
         }
         return FALSE;
     }
+    private static function callable_to_string( $callable ) {
+        if ( is_string( $callable ) ) {
+            return $callable;
+        }
+        if ( is_array( $callable ) ) {
+            if ( is_string( $callable[0] ) && is_string( $callable[1] ) ) {
+                return $callable[0] . '::' . $callable[1];
+            }
+        }
+        // TODO: The other cases do not occur in this application.
+        return 'Error: callable_to_string() failed.';
+    }
     # combine_minify() is adapted from Minify0_Minify::_combineMinify().
     # combine_minify() is called only when Minify0_Minify::_combineMinify() has failed - thrown an exception.
     # So, the point is to do it differently and avoid throwing the exception.
@@ -1739,6 +1751,7 @@ EOD
         $defaultMinifier = isset( $options['minifiers'][$type])
             ? $options['minifiers'][$type]
             : false;
+        error_log( 'MC_Alt_W3TC_Minify::combine_minify():$defaultMinifier=' . self::callable_to_string( $defaultMinifier ) );
 
         $content        = [];
         $originalLength = 0;
@@ -1746,8 +1759,8 @@ EOD
             $sourceContent   = $source->getContent();
             $originalLength += strlen($sourceContent);
 
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify()::(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify()::gettype( $source->minifier )=' . gettype( $source->minifier ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify():(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify():gettype( $source->minifier )=' . gettype( $source->minifier ) );
 
             // allow the source to override our minifier and options
             $minifier = (null !== $source->minifier)
@@ -1770,9 +1783,12 @@ EOD
                 try {
                     $minified  = call_user_func( $minifier, $sourceContent, $options );
                     $content[] = $minified;
-                } catch (Exception $e) {
+                } catch ( Exception $e ) {
                     error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                     self::print_r( $e, 'Exception $e' );
+                    $callable = self::callable_to_string( $minifier );
+                    error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
+                    self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed." );
                     $content[] = $sourceContent;
                 }
             } else {
