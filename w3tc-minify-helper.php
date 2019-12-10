@@ -1474,9 +1474,16 @@ EOD
                             # $serve_options['minApp']['groups'] = $this->get_groups( $theme, $template, $type );
                             error_log( 'MC_Alt_W3TC_Minify Error: ob_start():callback(): $_GET["g"] exists!' );
                         }
-                        $minifier_type                                    = 'application/x-javascript';
-                        $engine                                           = 'combinejs';
                         $w3_minifier                                      = \W3TC\Dispatcher::component( 'Minify_ContentMinifier' );
+                        $minifier_type                                    = 'application/x-javascript';
+                        if ( $config->get_boolean( 'minify.js.combine.header' ) ) {
+                            $engine                                       = 'combinejs';
+                        } else {
+                            $engine                                       = $config->get_string( 'minify.js.engine' );
+                            if ( ! $w3_minifier->exists( $engine ) || ! $w3_minifier->available( $engine ) ) {
+                                $engine                                   = 'js';
+                            }
+                        }
                         $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
                         $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
                         $controller                                       = new Minify_Controller_MinApp( );
@@ -1772,8 +1779,7 @@ EOD
 
             error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
             self::print_r( $source,   '$source' );
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-            self::print_r( $minifier, '$minifier' );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify():$minifier=' . self::callable_to_string( $minifier ) );
             error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
             self::print_r( $options,  '$options' );
 
