@@ -1586,31 +1586,31 @@ EOD
         }
         return FALSE;
     }
-    # check_if_minified_javascript() tries to determine if a JavaScript file has already been minified.
+    # is_minified_javascript() tries to determine if a JavaScript file has already been minified.
     # It simply looks at the length of variable names.
-    protected static function check_if_minified_javascript( $buffer ) {
+    protected static function is_minified_javascript( $buffer ) {
         if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
+            $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
+                error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
                 self::print_r( $matches[1], '$matches[1]' );
-                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
-            } else {
-                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
+                $statistics->names = [];
             }
             foreach ( $matches[1] as $match ) {
-                self::parse_js_var_statement( $match, 0, $statistics );
+                self::parse_js_var_statement( $match, 0, strlen( $match), $statistics );
             }
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->count='        . $statistics->count );
-                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->total_length=' . $statistics->total_length );
-                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript:$statistics->max='          . $statistics->max );
-                error_log( 'MC_Alt_W3TC_Minify():check_if_minified_javascript: ' );
-                self::print_r( $statistics->names, '$statistics->names' );
+                error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
+                self::print_r( $statistics, '$statistics' );
             }
             return $statistics->count > 0 ? ( $statistics->max < 4 && $statistics->total_length / $statistics->count < 3 ) : NULL;
         }
         return NULL;
     }
+    // TODO: parse_js_var_statement() fails on:
+/*
+var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toString,k=i.hasOwnProperty,l={},m="1.12.4",n=function(a,b){return new n.fn.init(a,b)},o=/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,p=/^-ms-/,q=/-([\da-z])/gi,r=function(a,b){return b.toUpperCase()};
+ */
     protected static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
         while ( $offset < $length ) {
             $offset = self::parse_js_spaces( $buffer, $offset, $length );
@@ -1619,6 +1619,12 @@ EOD
             $char   = $buffer[ $offset ];
             if ( $char === '=' ) {
                 $offset = self::parse_js_expression( $buffer, $offset, $length );
+            }
+            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                if ( $offset >= $length ) {
+                    error_log( 'MC_Alt_W3TC_Minify():parse_js_var_statement():offset=' . $offset );
+                    error_log( 'MC_Alt_W3TC_Minify():parse_js_var_statement():buffer=' . $buffer );
+                }
             }
             $char   = $buffer[ $offset ];
             if ( $char === ',' ) {
@@ -1784,6 +1790,9 @@ EOD
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                 self::print_r( $options, '$options' );
             }
+            # Skip already minified JavaScript files, especially since the "YUI Compressor" aborts on some minified JavaScript files.
+            // TODO: is_minified_javascript() doesn't always work
+            // if ( $minifier && self::is_minified_javascript( $sourceContent ) !== TRUE ) {
             if ( $minifier ) {
                 try {
                     $minified  = call_user_func( $minifier, $sourceContent, $options );
@@ -1865,12 +1874,12 @@ EOD
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER ) {
 
 class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
-    # The following is for unit testing MC_Alt_W3TC_Minify::check_if_minified_javascript() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_check_if_minified_javascript("xxx.js");'
-    public static function wp_cli_test_check_if_minified_javascript( $file ) {
+    # The following is for unit testing MC_Alt_W3TC_Minify::is_minified_javascript() using WP-CLI.
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_is_minified_javascript("xxx.js");'
+    public static function wp_cli_test_is_minified_javascript( $file ) {
         $buffer = file_get_contents( $file );
-        $ret    = self::check_if_minified_javascript( $buffer );
-        echo 'check_if_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
+        $ret    = self::is_minified_javascript( $buffer );
+        echo 'is_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
     # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();'
