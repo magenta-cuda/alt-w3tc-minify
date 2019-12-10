@@ -1405,35 +1405,44 @@ EOD
                 return $minify_filename;
             }, 10, 3 );
         }
-        if ( self::$auto_minify ) {
-            # If the page contains only inline <script> elements then W3TC will not run its JavaScript minifier because it batches
-            # only non inline <script> elements and since there are none of these it sees an empty batch. However, the monitor's
-            # minifier has batched the inline <script> elements and it needs W3TC to run its minifier as the monitor's minifier
-            # runs on a filter in W3TC's minifier code. To solve this we will emit dummy <head> and <body> <script> elements.
-            wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
-            wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
+        if ( ! self::$auto_minify ) {
+            return FALSE;
         }
-        $ob_status = ob_get_status( TRUE );
-        error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, true ) );
+        # If the page contains only inline <script> elements then W3TC will not run its JavaScript minifier because it batches
+        # only non inline <script> elements and since there are none of these it sees an empty batch. However, the monitor's
+        # minifier has batched the inline <script> elements and it needs W3TC to run its minifier as the monitor's minifier
+        # runs on a filter in W3TC's minifier code. To solve this we will emit dummy <head> and <body> <script> elements.
+        wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
+        wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
+        # When the JavaScript minifier aborts W3TC throws an exception and returns a HTTP 500 response. It is possible to do
+        # something better - i.e., just return the raw unminified files. We will do this by using PHP's output buffering
+        # to completely replace the HTTP response emitted by W3TC.
+        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+            $ob_status = ob_get_status( TRUE );
+            error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
+        }
         if ( ( $ob_level = ob_get_level() ) <= 2 ) {
             ob_start( function( $buffer ) {
-                $ob_status = ob_get_status( TRUE );
-                error_log( 'ob_start():callback():' );
-                self::print_r( $ob_status, '$ob_status' );
+                $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
-                error_log( 'ob_start():callback():http_response_code()=' . $response_code );
+                if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                    error_log( 'ob_start():callback():' );
+                    self::print_r( $ob_status, '$ob_status' );
+                    error_log( 'ob_start():callback():http_response_code()=' . $response_code );
+                }
                 if ( $response_code == 500 ) {
-                    $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+                    # This HTTP request has failed. Here we are only interested in a HTTP request for an auto minified JavaScript file.
+                    $url    = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
                     $parsed = parse_url( $url );
                     $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-                    # Verify that the minified file is from an auto JavaScript minification.
-                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix
+                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) === $prefix
                         && array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
+                        # This is a failed HTTP request for an auto minified JavaScript file.
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
                         }
                         http_response_code( 200 );
-                        # TODO: replace with raw unminified file
+                        # We will completely replace the failed HTTP response with a valid response.
                         # The sources for the minified file are in Minify0_Minify::$_controller->sources.
                         # Unfortunately, they are not accessible as the following print_r() shows.
                         # error_log( 'ob_start():callback():' );
@@ -1537,7 +1546,7 @@ EOD
                 }
             }
         } );
-        return self::$auto_minify;
+        return TRUE;
     }   # public static function monitor_minify_autojs() {
     public static function purge_auto_minify_cache() {
         # Since this only removes the disk files it must be called as a 'w3tc_flush_minify' action
