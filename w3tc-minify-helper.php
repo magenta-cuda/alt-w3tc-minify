@@ -1589,6 +1589,8 @@ EOD
     # is_minified_javascript() tries to determine if a JavaScript file has already been minified.
     # It simply looks at the length of variable names.
     protected static function is_minified_javascript( $buffer ) {
+        # Sanitize $buffer by removing all comments and emptying all strings.
+        $buffer = self::sanitize_for_var_statment_processing( $buffer );
         if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
             $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
@@ -1607,6 +1609,36 @@ EOD
         }
         return NULL;
     }
+    # sanitize_for_var_statment_processing() removes all comments and empties all strings
+    private static function sanitize_for_var_statment_processing( $buffer ) {
+        $sanitized = '';
+        $length = strlen( $buffer );
+        $i = 0;
+        $j = 0;
+        while ( $i < $length ) {
+            if ( $buffer[ $i ] === '/' && $buffer[ $i + 1 ] === '/' ) {
+                if ( $i > $j ) {
+                    $sanitized .= substr( $buffer, $j, $i - $j );
+                }
+                $j = $i = strpos( $buffer, "\n", $i + 2 ) + 1;
+            } else if ( $buffer[ $i ] === '/' && $buffer[ $i + 1 ] === '*' ) {
+                if ( $i > $j ) {
+                    $sanitized .= substr( $buffer, $j, $i - $j );
+                }
+                $j = $i = strpos( $buffer, '*/', $i + 2 ) + 2;
+            } else if ( $buffer[ $i ] === '\'' or $buffer[ $i ] === '"' ) {
+                $sanitized .= $buffer[ $i ];
+                $sanitized .= $buffer[ $i ];
+                $j = $i = self::parse_js_string( $buffer, $i + 1, $length, $buffer[ $i ] );
+            } else {
+                ++$i;
+            }
+        }
+        if ( $i > $j ) {
+            $sanitized .= substr( $buffer, $j, $i - $j );
+        }
+        return $sanitized;
+    }
     // TODO: parse_js_var_statement() fails on:
 /*
 var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toString,k=i.hasOwnProperty,l={},m="1.12.4",n=function(a,b){return new n.fn.init(a,b)},o=/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,p=/^-ms-/,q=/-([\da-z])/gi,r=function(a,b){return b.toUpperCase()};
@@ -1620,13 +1652,12 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
             if ( $char === '=' ) {
                 $offset = self::parse_js_expression( $buffer, $offset, $length );
             }
-            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                if ( $offset >= $length ) {
-                    error_log( 'MC_Alt_W3TC_Minify():parse_js_var_statement():offset=' . $offset );
-                    error_log( 'MC_Alt_W3TC_Minify():parse_js_var_statement():buffer=' . $buffer );
-                }
+            if ( $offset >= $length ) {
+                error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():Illegal string offset.' );
+                error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():$offset=' . $offset );
+                error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():$buffer=' . $buffer );
             }
-            $char   = $buffer[ $offset ];
+            $char = $buffer[ $offset ];
             if ( $char === ',' ) {
                 ++$offset;
                 continue;
