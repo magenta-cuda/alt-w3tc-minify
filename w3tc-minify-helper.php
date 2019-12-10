@@ -1743,57 +1743,49 @@ EOD
     # So, the point is to do it differently and avoid throwing the exception.
     private static function combine_minify( $options, $controller ) {
         $type = $options['contentType'];   # $type should always be Minify0_Minify::TYPE_JS
-
         // when combining scripts, make sure all statements separated and
         // trailing single line comment is terminated
         $implodeSeparator = "\n;";
         // allow the user to pass a particular array of options to each
         // minifier (designated by type). source objects may still override
         // these
-        $defaultOptions = isset( $options['minifierOptions'][$type] )
-            ? $options['minifierOptions'][$type]
-            : array();
+        $defaultOptions  = isset( $options['minifierOptions'][ $type ] ) ? $options['minifierOptions'][ $type ] : [];
         // if minifier not set, default is no minification. source objects
         // may still override this
-        $defaultMinifier = isset( $options['minifiers'][$type])
-            ? $options['minifiers'][$type]
-            : false;
-        error_log( 'MC_Alt_W3TC_Minify::combine_minify():$defaultMinifier=' . self::callable_to_string( $defaultMinifier ) );
-
+        $defaultMinifier = isset( $options['minifiers'][ $type ] )       ? $options['minifiers'][$type]         : FALSE;
+        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify():$defaultMinifier=' . self::callable_to_string( $defaultMinifier ) );
+        }
         $content        = [];
         $originalLength = 0;
         foreach ( $controller->sources as $source ) {
             $sourceContent   = $source->getContent();
             $originalLength += strlen($sourceContent);
-
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify():(null !== $source->minifier)=' . ( (null !== $source->minifier) ? 'true' : 'false' ) );
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify():gettype( $source->minifier )=' . gettype( $source->minifier ) );
-
+            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify():(NULL !== $source->minifier)=' . ( ( NULL !== $source->minifier ) ? 'TRUE' : 'FALSE' ) );
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify():gettype( $source->minifier )=' . gettype( $source->minifier ) );
+            }
             // allow the source to override our minifier and options
-            $minifier = (null !== $source->minifier)
-                ? $source->minifier
-                : $defaultMinifier;
-            $options = (null !== $source->minifyOptions)
-                ? array_merge($defaultOptions, $source->minifyOptions)
-                : $defaultOptions;
-
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-            self::print_r( $source,   '$source' );
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify():$minifier=' . self::callable_to_string( $minifier ) );
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-            self::print_r( $options,  '$options' );
-
-            if ( $minifier ) {
+            $minifier = ( NULL !== $source->minifier )      ? $source->minifier                                      : $defaultMinifier;
+            $options  = ( NULL !== $source->minifyOptions ) ? array_merge( $defaultOptions, $source->minifyOptions ) : $defaultOptions;
+            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                self::print_r( $minifier, '$minifier' );
+                self::print_r( $source,  '$source' );
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify():$minifier=' . self::callable_to_string( $minifier ) );
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                self::print_r( $options, '$options' );
+            }
+            if ( $minifier ) {
                 try {
                     $minified  = call_user_func( $minifier, $sourceContent, $options );
                     $content[] = $minified;
                 } catch ( Exception $e ) {
-                    error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                    self::print_r( $e, 'Exception $e' );
                     $callable = self::callable_to_string( $minifier );
-                    error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
+                    if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                        error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                        self::print_r( $e, 'Exception $e' );
+                        error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
+                    }
                     self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed." );
                     $content[] = $sourceContent;
                 }
@@ -1801,9 +1793,7 @@ EOD
                 $content[] = $sourceContent;
             }
         }
-
         $content = implode($implodeSeparator, $content);
-
         // do any post-processing (esp. for editing build URIs)
         if ( FALSE && $options['postprocessorRequire'] ) {   // TODO: PHP Notice:  Undefined index: postprocessorRequire
             require_once $options['postprocessorRequire'];
@@ -1811,10 +1801,7 @@ EOD
         if ( FALSE && $options['postprocessor'] ) {   // TODO: PHP Notice:  Undefined index: postprocessor
             $content = call_user_func( $options['postprocessor'], $content, $type );
         }
-        return array(
-            'originalLength' => $originalLength,
-            'content' => $content
-        );
+        return [ 'originalLength' => $originalLength, 'content' => $content ];
     }   # private static function combine_minify( $options, $controller ) {
     # This print_r() is necessary since the real print_r() uses output buffering and this causes the following error:
     #     PHP Fatal error:  print_r(): Cannot use output buffering in output buffering display handlers ...
