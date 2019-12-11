@@ -1601,7 +1601,7 @@ EOD
                 $statistics->names = [];
             }
             foreach ( $matches[1] as $match ) {
-                self::parse_js_var_statement( $match, 0, strlen( $match), $statistics );
+                self::parse_js_var_statement( $match, 0, strlen( $match ), $statistics );
             }
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                 error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
@@ -1928,6 +1928,7 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
     # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();' < test-2.js
     public static function wp_cli_test_parse_js_var_statement( ) {
         while ( TRUE ) {
             fwrite( STDERR, '> ' );
@@ -1935,11 +1936,15 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
                 break;
             }
             $buffer = trim( $buffer, "\r\n" );
-            $length = strlen( $buffer );
-            $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
-            self::parse_js_var_statement( $buffer, 0, $length, $statistics );
-            $output = print_r( $statistics, TRUE );
-            fwrite( STDERR, $output );
+            $buffer = self::sanitize_for_var_statment_processing( $buffer );
+            if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
+                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
+                foreach ( $matches[1] as $match ) {
+                    self::parse_js_var_statement( $match, 0, strlen( $match ), $statistics );
+                }
+                $output = print_r( $statistics, TRUE );
+                fwrite( STDERR, $output );
+            }
         }
     }
 }   # MC_Alt_W3TC_Minify_Unit_Tester
