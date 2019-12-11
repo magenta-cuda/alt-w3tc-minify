@@ -1421,7 +1421,8 @@ EOD
             $ob_status = ob_get_status( TRUE );
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
         }
-        if ( ( $ob_level = ob_get_level() ) <= 2 ) {
+        # empty( $_SERVER['REMOTE_ADDR'] ) means we are running from the CLI
+        if ( ( $ob_level = ob_get_level() ) <= 2 && ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
             ob_start( function( $buffer ) {
                 $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
@@ -1610,11 +1611,10 @@ EOD
         return NULL;
     }
     # sanitize_for_var_statment_processing() removes all comments and empties all strings
-    private static function sanitize_for_var_statment_processing( $buffer ) {
+    protected static function sanitize_for_var_statment_processing( $buffer ) {
         $sanitized = '';
         $length = strlen( $buffer );
-        $i = 0;
-        $j = 0;
+        $j = $i = 0;
         while ( $i < $length ) {
             if ( $buffer[ $i ] === '/' && $buffer[ $i + 1 ] === '/' ) {
                 if ( $i > $j ) {
@@ -1627,6 +1627,9 @@ EOD
                 }
                 $j = $i = strpos( $buffer, '*/', $i + 2 ) + 2;
             } else if ( $buffer[ $i ] === '\'' or $buffer[ $i ] === '"' ) {
+                if ( $i > $j ) {
+                    $sanitized .= substr( $buffer, $j, $i - $j );
+                }
                 $sanitized .= $buffer[ $i ];
                 $sanitized .= $buffer[ $i ];
                 $j = $i = self::parse_js_string( $buffer, $i + 1, $length, $buffer[ $i ] );
@@ -1911,6 +1914,14 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
         $buffer = file_get_contents( $file );
         $ret    = self::is_minified_javascript( $buffer );
         echo 'is_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
+    }
+    # The following is for unit testing MC_Alt_W3TC_Minify::sanitize_for_var_statment_processing() using WP-CLI.
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_sanitize_for_var_statment_processing("test-1.js");'
+    public static function wp_cli_test_sanitize_for_var_statment_processing( $file ) {
+        $buffer   = file_get_contents( $file );
+        $name     = basename( $file, 'js' );
+        $new_file = str_replace( $name, $name . 'sanitized.', $file );
+        file_put_contents( $new_file, self::sanitize_for_var_statment_processing( $buffer ) );
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
     # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();'
