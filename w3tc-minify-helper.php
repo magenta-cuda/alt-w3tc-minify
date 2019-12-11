@@ -1421,8 +1421,7 @@ EOD
             $ob_status = ob_get_status( TRUE );
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
         }
-        # empty( $_SERVER['REMOTE_ADDR'] ) means we are running from the CLI
-        if ( ( $ob_level = ob_get_level() ) <= 2 && ! empty( $_SERVER['REMOTE_ADDR'] ) ) {
+        if ( ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
             ob_start( function( $buffer ) {
                 $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
@@ -1516,37 +1515,39 @@ EOD
                 }   # if ( $response_code == 500 ) {
                 return $buffer;
            } );
-        }
+        }   # if ( ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
         error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
         set_exception_handler( function( $ex ) {
             error_log( 'Exception:$ex=' . print_r( $ex, true ) );
         } );
-        error_log( 'register_shutdown_function():called' );
-        register_shutdown_function( function( ) {
-            # The following shows that when shutdown functions are called output buffering has already been completely unwound.
-            $ob_status = ob_get_status( TRUE );
-            error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
-            $headers = getallheaders();
-            error_log( 'getallheaders()=' . print_r( $headers, true ) );
-            $response_headers = apache_response_headers( );
-            error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
-            $response_code = http_response_code( );
-            error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
-            if ( $response_code == 500 ) {
-                $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
-                $parsed = parse_url( $url );
-                $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-                if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
-                    # This is a failed HTTP request for a W3TC minified file.
-                    error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
-                    $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
-                    error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
-                    // TODO: How should we handle this?
-                    // TODO: For now just display an admin notice.
-                    self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
+        if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
+            error_log( 'register_shutdown_function():called' );
+            register_shutdown_function( function( ) {
+                # The following shows that when shutdown functions are called output buffering has already been completely unwound.
+                $ob_status = ob_get_status( TRUE );
+                error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
+                $headers = getallheaders();
+                error_log( 'getallheaders()=' . print_r( $headers, true ) );
+                $response_headers = apache_response_headers( );
+                error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
+                $response_code = http_response_code( );
+                error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
+                if ( $response_code == 500 ) {
+                    $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+                    $parsed = parse_url( $url );
+                    $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
+                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
+                        # This is a failed HTTP request for a W3TC minified file.
+                        error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
+                        $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
+                        error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
+                        // TODO: How should we handle this?
+                        // TODO: For now just display an admin notice.
+                        self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
+                    }
                 }
-            }
-        } );
+            } );
+        }   # if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
         return TRUE;
     }   # public static function monitor_minify_autojs() {
     public static function purge_auto_minify_cache() {
@@ -1716,7 +1717,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
-            if ( $char === '{' || $char === '[' ) {
+            if ( $char === '{' || $char === '[' || $char === '(' ) {
                 $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
@@ -1737,16 +1738,18 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
         return $pos + 1;
     }
     private static function parse_js_group( $buffer, $offset, $length, $delim ) {
+        static $end_delim_map = [ '{' => '}', '[' => ']', '(' => ')' ];
+        $end_delim = $end_delim_map[ $delim ];
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
-            if ( $char === $delim ) {
+            if ( $char === $end_delim ) {
                 return $offset + 1;
             }
             if ( $char === '\'' || $char === '"' ) {
                 $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
-            if ( $char === '{' || $char === '[' ) {
+            if ( $char === '{' || $char === '[' || $char === '(' ) {
                 $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
