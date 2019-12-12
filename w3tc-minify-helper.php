@@ -1592,24 +1592,26 @@ EOD
     # It simply looks at the length of variable names.
     protected static function is_minified_javascript( $buffer ) {
         # Sanitize $buffer by removing all comments and emptying all strings.
-        $buffer = self::sanitize_for_var_statment_processing( $buffer );
-        if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
-            $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
-            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
-                self::print_r( $matches[1], '$matches[1]' );
-                $statistics->names = [];
-            }
-            foreach ( $matches[1] as $match ) {
-                self::parse_js_var_statement( $match, 0, strlen( $match ), $statistics );
-            }
-            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
-                self::print_r( $statistics, '$statistics' );
-            }
-            return $statistics->count > 0 ? ( $statistics->max < 4 && $statistics->total_length / $statistics->count < 3 ) : NULL;
+        $buffer     = self::sanitize_for_var_statment_processing( $buffer );
+        $length     = strlen( $buffer );
+        $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0 ];
+        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+            $statistics->names = [];
         }
-        return NULL;
+        # if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
+        # The above will not work e.g. var a=function(){var b;}; - N.B. ; inside function does not terminate the var statement
+        $offset = 0;
+        while ( ( $offset = strpos( $buffer, 'var ', $offset ) ) !== FALSE ) {
+            if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): $buffer=' . substr( $buffer, $offset, 256 ) );
+            }
+            $offset = self::parse_js_var_statement( $buffer, $offset + 4, $length, $statistics );
+        }
+        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+            error_log( 'MC_Alt_W3TC_Minify():is_minified_javascript(): ' );
+            self::print_r( $statistics, '$statistics' );
+        }
+        return $statistics->count > 0 ? ( $statistics->max < 4 && $statistics->total_length / $statistics->count < 3 ) : NULL;
     }
     # sanitize_for_var_statment_processing() removes all comments and empties all strings
     protected static function sanitize_for_var_statment_processing( $buffer ) {
@@ -1660,6 +1662,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():Illegal string offset.' );
                 error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():$offset=' . $offset );
                 error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():$buffer=' . $buffer );
+                return $offset;
             }
             $char = $buffer[ $offset ];
             if ( $char === ',' ) {
@@ -1667,12 +1670,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 continue;
             }
             if ( $char === ';' ) {
-                ++$offset;
-                if ( $offset !== $length ) {
-                    # For a correct var statement this should not happen.
-                    $offset = $length;
-                }
-                return $offset;
+                return $offset + 1;
             }
         }
         # For a correct var statement this should not happen.
@@ -1729,6 +1727,13 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
     private static function parse_js_string( $buffer, $offset, $length, $delim ) {
         while ( $offset < $length ) {
             $pos = strpos( $buffer, $delim, $offset );
+            if ( $pos === FALSE ) {
+                // TODO: This should not happen in a correct JavaScript file. There must be something wrong somewhere with my parser!
+                if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                    error_log( 'MC_Alt_W3TC_Minify():parse_js_string(): $buffer=' . substr( $buffer, $offset, 256 ) );
+                }
+                return $length;
+            }
             if ( $pos > $offset && $buffer[ $pos - 1 ] === '\\' ) {
                 $offset = $pos + 1;
                 continue;
@@ -1828,9 +1833,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 self::print_r( $options, '$options' );
             }
             # Skip already minified JavaScript files, especially since the "YUI Compressor" aborts on some minified JavaScript files.
-            // TODO: is_minified_javascript() doesn't always work
-            // if ( $minifier && self::is_minified_javascript( $sourceContent ) !== TRUE ) {
-            if ( $minifier ) {
+            if ( $minifier && self::is_minified_javascript( $sourceContent ) !== TRUE ) {
                 try {
                     $minified  = call_user_func( $minifier, $sourceContent, $options );
                     $content[] = $minified;
@@ -1846,6 +1849,9 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 }
             } else {
                 $content[] = $sourceContent;
+                if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                    error_log( 'MC_Alt_W3TC_Minify::combine_minify(): Minify of file \"' . $source->filepath . '" skipped.' );
+                }
             }
         }
         $content = implode($implodeSeparator, $content);
@@ -1912,7 +1918,7 @@ if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEB
 
 class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     # The following is for unit testing MC_Alt_W3TC_Minify::is_minified_javascript() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_is_minified_javascript("xxx.js");'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_is_minified_javascript("test-1.js");'
     public static function wp_cli_test_is_minified_javascript( $file ) {
         $buffer = file_get_contents( $file );
         $ret    = self::is_minified_javascript( $buffer );
