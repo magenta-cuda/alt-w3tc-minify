@@ -1636,6 +1636,20 @@ EOD
                 $sanitized .= $buffer[ $i ];
                 $sanitized .= $buffer[ $i ];
                 $j = $i = self::parse_js_string( $buffer, $i + 1, $length, $buffer[ $i ] );
+            } else if ( $buffer[ $i ] === '/' ) {
+                # Possible regular expression
+                for ( $k = $i - 1; $k >= 0; $k-- ) {
+                    if ( ! ctype_space( $buffer[ $k ] ) ) {
+                        break;
+                    }
+                }
+                if ( $k >= 0 && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
+                    if ( $i > $j ) {
+                        $sanitized .= substr( $buffer, $j, $i - $j );
+                    }
+                    $sanitized .= '//';
+                    $j = $i = self::parse_js_string( $buffer, $i + 1, $length, '/' );
+                }
             } else {
                 ++$i;
             }
@@ -1656,7 +1670,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
             $offset = self::parse_js_spaces( $buffer, $offset, $length );
             $char   = $buffer[ $offset ];
             if ( $char === '=' ) {
-                $offset = self::parse_js_expression( $buffer, $offset, $length );
+                $offset = self::parse_js_expression( $buffer, $offset + 1, $length );
             }
             if ( $offset >= $length ) {
                 error_log( 'MC_Alt_W3TC_Minify Error: parse_js_var_statement():Illegal string offset.' );
@@ -1706,16 +1720,28 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
         return $offset;
     }
     private static function parse_js_expression( $buffer, $offset, $length ) {
+        $start = $offset;
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === ',' || $char === ';' ) {
-                return $offset;
+                return $offset + 1;
             }
             if ( $char === '\'' || $char === '"' ) {
                 $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
-            if ( $char === '{' || $char === '[' || $char === '(' ) {
+            if ( $char === '/' ) {
+                # Possible regular expression
+                for ( $k = $offset - 1; $k >= $start; $k-- ) {
+                    if ( ! ctype_space( $buffer[ $k ] ) ) {
+                        break;
+                    }
+                }
+                if ( $k >= 0 && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
+                    $offset = self::parse_js_string( $buffer, $offset + 1, $length, '/' );
+                    continue;
+                }
+            } else if ( $char === '{' || $char === '[' || $char === '(' ) {
                 $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
@@ -1730,7 +1756,8 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
             if ( $pos === FALSE ) {
                 // TODO: This should not happen in a correct JavaScript file. There must be something wrong somewhere with my parser!
                 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                    error_log( 'MC_Alt_W3TC_Minify():parse_js_string(): $buffer=' . substr( $buffer, $offset, 256 ) );
+                    error_log( 'MC_Alt_W3TC_Minify Error: parse_js_string(): Unmatched . \'' . $delim .'\'' );
+                    error_log( 'MC_Alt_W3TC_Minify Error: parse_js_string(): $buffer=' . substr( $buffer, $offset, 256 ) );
                 }
                 return $length;
             }
@@ -1745,6 +1772,8 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
     private static function parse_js_group( $buffer, $offset, $length, $delim ) {
         static $end_delim_map = [ '{' => '}', '[' => ']', '(' => ')' ];
         $end_delim = $end_delim_map[ $delim ];
+        $start = $offset;
+        error_log( 'parse_js_group():$buffer=' . substr( $buffer, $offset, 256 ) );
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === $end_delim ) {
@@ -1754,7 +1783,18 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                 $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
                 continue;
             }
-            if ( $char === '{' || $char === '[' || $char === '(' ) {
+            if ( $char === '/' ) {
+                # Possible regular expression
+                for ( $k = $offset - 1; $k >= $start; $k-- ) {
+                    if ( ! ctype_space( $buffer[ $k ] ) ) {
+                        break;
+                    }
+                }
+                if ( $k >= 0 && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
+                    $offset = self::parse_js_string( $buffer, $offset + 1, $length, '/' );
+                    continue;
+                }
+            } else if ( $char === '{' || $char === '[' || $char === '(' ) {
                 $offset = self::parse_js_group( $buffer, $offset + 1, $length, $char );
                 continue;
             }
