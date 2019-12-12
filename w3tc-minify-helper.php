@@ -1737,7 +1737,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                         break;
                     }
                 }
-                if ( $k >= 0 && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
+                if ( $k >= $start && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
                     $offset = self::parse_js_string( $buffer, $offset + 1, $length, '/' );
                     continue;
                 }
@@ -1773,7 +1773,6 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
         static $end_delim_map = [ '{' => '}', '[' => ']', '(' => ')' ];
         $end_delim = $end_delim_map[ $delim ];
         $start = $offset;
-        error_log( 'parse_js_group():$buffer=' . substr( $buffer, $offset, 256 ) );
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === $end_delim ) {
@@ -1790,7 +1789,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                         break;
                     }
                 }
-                if ( $k >= 0 && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
+                if ( $k >= $start && in_array ( $buffer[ $k ], [ '=', '(', '[', ',', ':' ] ) ) {
                     $offset = self::parse_js_string( $buffer, $offset + 1, $length, '/' );
                     continue;
                 }
