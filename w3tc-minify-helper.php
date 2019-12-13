@@ -1726,7 +1726,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
         while ( $offset < $length ) {
             $char = $buffer[ $offset ];
             if ( $char === ',' || $char === ';' ) {
-                return $offset + 1;
+                return $offset;
             }
             if ( $char === '\'' || $char === '"' ) {
                 $offset = self::parse_js_string( $buffer, $offset + 1, $length, $char );
@@ -1982,16 +1982,15 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
             if ( ( $buffer = fgets( STDIN, 1024 ) ) === FALSE ) {
                 break;
             }
-            $buffer = trim( $buffer, "\r\n" );
-            $buffer = self::sanitize_for_var_statment_processing( $buffer );
-            if ( preg_match_all( '#var\s([^;]+;)#', $buffer, $matches, PREG_PATTERN_ORDER ) ) {
-                $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
-                foreach ( $matches[1] as $match ) {
-                    self::parse_js_var_statement( $match, 0, strlen( $match ), $statistics );
-                }
-                $output = print_r( $statistics, TRUE );
-                fwrite( STDERR, $output );
+            $buffer     = self::sanitize_for_var_statment_processing( trim( $buffer, "\r\n" ) );
+            $length     = strlen( $buffer );
+            $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
+            $offset     = 0;
+            while ( ( $offset = strpos( $buffer, 'var ', $offset ) ) !== FALSE ) {
+                error_log( '$buffer =' . substr( $buffer, $offset, 64 ) );
+                $offset = self::parse_js_var_statement( $buffer, $offset + 4, $length, $statistics );
             }
+            fwrite( STDERR, print_r( $statistics, TRUE ) );
         }
     }
 }   # MC_Alt_W3TC_Minify_Unit_Tester
