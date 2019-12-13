@@ -1649,6 +1649,8 @@ EOD
                     }
                     $sanitized .= '//';
                     $j = $i = self::parse_js_string( $buffer, $i + 1, $length, '/' );
+                } else {
+                    ++$i;
                 }
             } else {
                 ++$i;
