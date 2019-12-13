@@ -904,11 +904,11 @@ EOD
         $log[ self::$theme ][ self::$basename ][] = (object) [ 'time' => current_time( 'mysql' ), 'data' => $entry ];
         update_option( self::OPTION_LOG_NAME, $log );
     }
-    private static function add_notice( $notice ) {
+    private static function add_notice( $notice, $no_duplicate = FALSE ) {
         $notices = get_transient( self::TRANSIENT_NAME );
         if ( $notices === FALSE ) {
             $notices = [ $notice ];
-        } else {
+        } else if ( $no_duplicate === FALSE || ! in_array( $notice, $notices ) ) {
             $notices[] = $notice;
         }
         set_transient( self::TRANSIENT_NAME, $notices );
@@ -1422,11 +1422,12 @@ EOD
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
         }
         # Here we are only interested in a HTTP request for an auto minified JavaScript file.
-        $url    = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
-        $parsed = parse_url( $url );
-        $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-        if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) === $prefix && ( $ob_level = ob_get_level() ) <= 2
-            && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
+        $url                              = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+        $parsed                           = parse_url( $url );
+        $w3tc_cache_minify_dir_prefix     = '/' . trim( $parsed['path'], '/' ) . '/';
+        $w3tc_cache_minify_dir_prefix_len = strlen( $w3tc_cache_minify_dir_prefix );
+        if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
+            && ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
             ob_start( function( $buffer ) {
                 $ob_status     = ob_get_status( TRUE );
@@ -1438,7 +1439,7 @@ EOD
                 }
                 if ( $response_code == 500 ) {
                     # This is a failed HTTP request.
-                    # $_GET['ext'] is not part of the original HTTP requests but is created by W3TC for a HTTP request for minified JavaScript files
+                    # $_GET['ext'] is not part of the original HTTP requests but is created by W3TC for a HTTP request for minified JavaScript files.
                     if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                         # This is a HTTP request for an auto minified JavaScript file.
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
@@ -1524,7 +1525,7 @@ EOD
         } );
         if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
             error_log( 'register_shutdown_function():called' );
-            register_shutdown_function( function( ) {
+            register_shutdown_function( function( ) use ( $w3tc_cache_minify_dir_prefix, $w3tc_cache_minify_dir_prefix_len ) {
                 # The following shows that when shutdown functions are called output buffering has already been completely unwound.
                 $ob_status = ob_get_status( TRUE );
                 error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
@@ -1535,10 +1536,7 @@ EOD
                 $response_code = http_response_code( );
                 error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
                 if ( $response_code == 500 ) {
-                    $url = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
-                    $parsed = parse_url( $url );
-                    $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix ) {
+                    if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix ) {
                         # This is a failed HTTP request for a W3TC minified file.
                         error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
                         $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
@@ -1615,11 +1613,11 @@ EOD
         }
         return $statistics->count > 0 ? ( $statistics->max < 4 && $statistics->total_length / $statistics->count < 3 ) : NULL;
     }
-    # sanitize_for_var_statment_processing() removes all comments and empties all strings
+    # sanitize_for_var_statment_processing() removes all comments and empties all strings.
     protected static function sanitize_for_var_statment_processing( $buffer ) {
         $sanitized = '';
-        $length = strlen( $buffer );
-        $j = $i = 0;
+        $length    = strlen( $buffer );
+        $j = $i    = 0;
         while ( $i < $length ) {
             if ( $buffer[ $i ] === '/' && $buffer[ $i + 1 ] === '/' ) {
                 if ( $i > $j ) {
@@ -1652,6 +1650,7 @@ EOD
                     $sanitized .= '//';
                     $j = $i = self::parse_js_string( $buffer, $i + 1, $length, '/' );
                 } else {
+                    # Division operator
                     ++$i;
                 }
             } else {
@@ -1663,10 +1662,6 @@ EOD
         }
         return $sanitized;
     }
-    // TODO: parse_js_var_statement() fails on:
-/*
-var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toString,k=i.hasOwnProperty,l={},m="1.12.4",n=function(a,b){return new n.fn.init(a,b)},o=/^[\s\uFEFF\xA0]+|[\s\uFEFF\xA0]+$/g,p=/^-ms-/,q=/-([\da-z])/gi,r=function(a,b){return b.toUpperCase()};
- */
     protected static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
         while ( $offset < $length ) {
             $offset = self::parse_js_spaces( $buffer, $offset, $length );
@@ -1887,7 +1882,7 @@ var c=[],d=a.document,e=c.slice,f=c.concat,g=c.push,h=c.indexOf,i={},j=i.toStrin
                         self::print_r( $e, 'Exception $e' );
                         error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
                     }
-                    self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed." );
+                    self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed.", TRUE );
                     $content[] = $sourceContent;
                 }
             } else {
