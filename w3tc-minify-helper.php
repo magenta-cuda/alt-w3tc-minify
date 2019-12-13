@@ -1421,7 +1421,13 @@ EOD
             $ob_status = ob_get_status( TRUE );
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
         }
-        if ( ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
+        # Here we are only interested in a HTTP request for an auto minified JavaScript file.
+        $url    = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
+        $parsed = parse_url( $url );
+        $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
+        if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) === $prefix && ( $ob_level = ob_get_level() ) <= 2
+            && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
+            error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
             ob_start( function( $buffer ) {
                 $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
@@ -1431,13 +1437,10 @@ EOD
                     error_log( 'ob_start():callback():http_response_code()=' . $response_code );
                 }
                 if ( $response_code == 500 ) {
-                    # This HTTP request has failed. Here we are only interested in a HTTP request for an auto minified JavaScript file.
-                    $url    = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
-                    $parsed = parse_url( $url );
-                    $prefix = '/' . trim( $parsed['path'], '/' ) . '/';
-                    if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) === $prefix
-                        && array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
-                        # This is a failed HTTP request for an auto minified JavaScript file.
+                    # This is a failed HTTP request.
+                    # $_GET['ext'] is not part of the original HTTP requests but is created by W3TC for a HTTP request for minified JavaScript files
+                    if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
+                        # This is a HTTP request for an auto minified JavaScript file.
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():$buffer=' . $buffer . '#####' );
                         }
@@ -1511,12 +1514,11 @@ EOD
                             error_log( 'ob_start():callback():$content=' . $content . '#####' );
                         }
                         return $content;
-                    }   # if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) == $prefix
+                    }   # if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                 }   # if ( $response_code == 500 ) {
                 return $buffer;
-           } );
-        }   # if ( ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
-        error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
+           } );   # ob_start( function( $buffer ) {
+        }   # if ( substr( $_SERVER['REQUEST_URI'], 0, strlen( $prefix ) ) === $prefix && ( $ob_level = ob_get_level() ) <= 2
         set_exception_handler( function( $ex ) {
             error_log( 'Exception:$ex=' . print_r( $ex, true ) );
         } );
@@ -1987,7 +1989,6 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
             $statistics = (object) [ 'count' => 0, 'total_length' => 0, 'max' => 0, 'names' => [] ];
             $offset     = 0;
             while ( ( $offset = strpos( $buffer, 'var ', $offset ) ) !== FALSE ) {
-                error_log( '$buffer =' . substr( $buffer, $offset, 64 ) );
                 $offset = self::parse_js_var_statement( $buffer, $offset + 4, $length, $statistics );
             }
             fwrite( STDERR, print_r( $statistics, TRUE ) );
