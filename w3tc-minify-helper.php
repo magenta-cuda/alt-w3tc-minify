@@ -1439,7 +1439,8 @@ EOD
                 }
                 if ( $response_code == 500 ) {
                     # This is a failed HTTP request.
-                    # $_GET['ext'] is not part of the original HTTP requests but is created by W3TC for a HTTP request for minified JavaScript files.
+                    # $_GET['ext'] is not part of the original HTTP request but is created by W3TC for a HTTP request for
+                    # minified JavaScript file. It is not initially available so the following check must be in the callback.
                     if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                         # This is a HTTP request for an auto minified JavaScript file.
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
@@ -1527,23 +1528,23 @@ EOD
             error_log( 'register_shutdown_function():called' );
             register_shutdown_function( function( ) use ( $w3tc_cache_minify_dir_prefix, $w3tc_cache_minify_dir_prefix_len ) {
                 # The following shows that when shutdown functions are called output buffering has already been completely unwound.
-                $ob_status = ob_get_status( TRUE );
-                error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
-                $headers = getallheaders();
-                error_log( 'getallheaders()=' . print_r( $headers, true ) );
-                $response_headers = apache_response_headers( );
-                error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
+                # $ob_status = ob_get_status( TRUE );
+                # error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
+                # $headers = getallheaders();
+                # error_log( 'getallheaders()=' . print_r( $headers, true ) );
+                # $response_headers = apache_response_headers( );
+                # error_log( 'apache_response_headers()=' . print_r( $response_headers, true ) );
                 $response_code = http_response_code( );
-                error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
+                # error_log( 'register_shutdown_function():callback():http_response_code()=' . $response_code );
                 if ( $response_code == 500 ) {
                     if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix ) {
                         # This is a failed HTTP request for a W3TC minified file.
-                        error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
                         $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
-                        error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
-                        // TODO: How should we handle this?
-                        // TODO: For now just display an admin notice.
-                        self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed." );
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
+                            error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
+                        }
+                        self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed.", TRUE );
                     }
                 }
             } );
