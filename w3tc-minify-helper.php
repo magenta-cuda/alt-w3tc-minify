@@ -136,20 +136,22 @@
  *
  */
 
-if ( TRUE ) {   # development
+# if ( TRUE ) {   # development
 #                                              1234567812345678
-# if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) ) {   # production
+if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
     #                                                             1234567812345678
     define( 'MC_AWM_191208_DEBUG_OFF',                          0x0000000000000000 );
     define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',           0x0000000000000001 );   # This enables WP-CLI unit testing
     define( 'MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER', 0x0000000000000002 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST',           0x0000000000000004 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
-                                   | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
-                                   | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
-                                   # MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST
+                                   # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
+                                   # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
+                                   | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
+                                       ? intval( $_REQUEST['mc_alt_w3tc_minify_debug'], 16 ) : 0x0000000000000000 )
     );
     error_log( 'MC_AWM_191208_DEBUG=' . MC_AWM_191208_DEBUG );
 }
@@ -1666,6 +1668,10 @@ EOD
         }
         return $sanitized;
     }
+    # The big problem with parsing var statements are statements like:
+    # var a = 1, b = function(){...}, c = 2;
+    # The function definition can contain any JavaScript so parsing a var statement requires parsing all of JavaScript.
+    # It cannot be done with a regular expression and requires a real parser.
     protected static function parse_js_var_statement( $buffer, $offset, $length, $statistics ) {
         while ( $offset < $length ) {
             $offset = self::parse_js_spaces( $buffer, $offset, $length );
@@ -1754,6 +1760,7 @@ EOD
         return $offset;
     }
     private static function parse_js_string( $buffer, $offset, $length, $delim ) {
+        $start = $offset;
         while ( $offset < $length ) {
             $pos = strpos( $buffer, $delim, $offset );
             if ( $pos === FALSE ) {
@@ -1764,7 +1771,8 @@ EOD
                 }
                 return $length;
             }
-            if ( $pos > $offset && $buffer[ $pos - 1 ] === '\\' ) {
+            # Be careful because in a JavaScript regular expressions the backslash '\' can be escaped e.g. var a=/'|\\/g;
+            if ( $pos > $start && $buffer[ $pos - 1 ] === '\\' && ( $delim !== '/' || $pos < $start + 2 || $buffer[ $pos - 2 ] !== '\\' ) ) {
                 $offset = $pos + 1;
                 continue;
             }
@@ -1877,19 +1885,20 @@ EOD
             # Skip already minified JavaScript files, especially since the "YUI Compressor" aborts on some minified JavaScript files.
             if ( $minifier && self::is_minified_javascript( $sourceContent ) !== TRUE ) {
                 try {
-                    $minified  = call_user_func( $minifier, $sourceContent, $options );
-                    $content[] = $minified;
+                    $content[] = call_user_func( $minifier, $sourceContent, $options );
                 } catch ( Exception $e ) {
+                    # Minification failed so just emit the unminified JavaScript file.
+                    $content[] = $sourceContent;
                     $callable = self::callable_to_string( $minifier );
+                    if ( self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed.", TRUE ) ) {
+                        # Hint to exclude this file from minification.
+                        self::add_notice( self::PLUGIN_NAME . ": Consider excluding file \"{$source->filepath}\" from minification.", TRUE );
+                    }
                     if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                         error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                         self::print_r( $e, 'Exception $e' );
                         error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
                     }
-                    if ( self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed.", TRUE ) ) {
-                        self::add_notice( self::PLUGIN_NAME . ": Consider excluding file \"{$source->filepath}\" from minification.", TRUE );
-                    }
-                    $content[] = $sourceContent;
                 }
             } else {
                 $content[] = $sourceContent;
