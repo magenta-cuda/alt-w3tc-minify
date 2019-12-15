@@ -910,8 +910,11 @@ EOD
             $notices = [ $notice ];
         } else if ( $no_duplicate === FALSE || ! in_array( $notice, $notices ) ) {
             $notices[] = $notice;
+        } else {
+            return FALSE;
         }
         set_transient( self::TRANSIENT_NAME, $notices );
+        return TRUE;
     }
     # Some notices should only be added only if a later condition is true.
     # These notices are held in a temporary queue and will be added later if the required condition is true.
@@ -1883,7 +1886,9 @@ EOD
                         self::print_r( $e, 'Exception $e' );
                         error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' . "Minify of file \"{$source->filepath}\" by {$callable}() failed." );
                     }
-                    self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed.", TRUE );
+                    if ( self::add_notice( self::PLUGIN_NAME . ": Minify of file \"{$source->filepath}\" by {$callable}() failed.", TRUE ) ) {
+                        self::add_notice( self::PLUGIN_NAME . ": Consider excluding file \"{$source->filepath}\" from minification.", TRUE );
+                    }
                     $content[] = $sourceContent;
                 }
             } else {
