@@ -1520,25 +1520,37 @@ EOD
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():$content=' . $content . '#####' );
                         }
-                        // TODO: cache the minified JavaScript file in W3TC's cache. Adapt code from Minify0_Minify::serve() method.
+                        // TODO: The following cache code will not work with $options['postprocessor'] undefined.
 /*
-                        # The following code adapted from code in Minify0_Minify::serve() method.
-                        if (null !== self::$_cache && ! self::$_options['debug']) {
-                            self::$_cache->store($cacheId, $content);
-                            if (function_exists('brotli_compress') && self::$_options['encodeMethod'] === 'br' && self::$_options['encodeOutput']) {
-                                $compressed = $content;
+                        # $cache initialization code adapted from W3TC's Minify_Controller_Version1::setupSources()
+                        # and Minify0_Minify::setCache() methods.
+                        $cache = NULL;
+                        if ( MINIFY_USE_CACHE ) {
+                            $cacheDir = defined( 'MINIFY_CACHE_DIR' ) ? MINIFY_CACHE_DIR : '';
+                            $cache      new \W3TC\Minify_Cache_File($cacheDir, TRUE );
+                        }
+                        if ( NULL !== $cache && ! $options['debug'] ) {
+                            # $cacheId initialization code adapted from W3TC'S Minify0_Minify::_getCacheId() method.
+                            $cacheId = md5( serialize( [
+                                                           \W3TC\Minify_Source::getDigest( $controller->sources ),
+                                                           $options['minifiers'],
+                                                           $options['minifierOptions'],
+                                                           $options['postprocessor'],
+                                                           $options['bubbleCssImports'],
+                                                           $options['processCssImports']
+                                                       ] ) );
+                            # The cache code adapted from W3TC's Minify0_Minify::serve() method.
+                            $cache->store($cacheId, $content);
+                            if ( function_exists('brotli_compress') && $options['encodeMethod'] === 'br' && $options['encodeOutput'] ) {
+                                $compressed            = $content;
                                 $compressed['content'] = brotli_compress($content['content']);
-
-                                self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
-                                    $compressed);
+                                $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed );
                             }
-                            if (function_exists('gzencode') && self::$_options['encodeMethod'] && self::$_options['encodeMethod'] !== 'br' && self::$_options['encodeOutput']) {
-                                $compressed = $content;
-                                $compressed['content'] = gzencode($content['content'],
-                                    self::$_options['encodeLevel']);
-
-                                self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
-                                    $compressed);
+                            if ( function_exists( 'gzencode' ) && $options['encodeMethod'] && $options['encodeMethod'] !== 'br'
+                                    && $options['encodeOutput'] ) {
+                                $compressed            = $content;
+                                $compressed['content'] = gzencode($content['content'], $options['encodeLevel'] );
+                                $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed) ;
                             }
                         }
  */
