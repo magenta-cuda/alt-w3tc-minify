@@ -1509,6 +1509,8 @@ EOD
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
+                        error_log( 'ob_start():callback():' );
+                        self::print_r( $options, '$options' );
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():' );
                             self::print_r( $options, '$options' );
@@ -1516,45 +1518,39 @@ EOD
                             self::print_r( $controller->sources, '$controller->sources' );
                         }
                         # Return the unminified files of $controller->sources.
-                        $content = self::combine_minify( $options, $controller )['content'];
+                        $content = self::combine_minify( $options, $controller );
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-                            error_log( 'ob_start():callback():$content=' . $content . '#####' );
+                            error_log( 'ob_start():callback():$content["content"]=' . $content['content'] . '#####' );
                         }
-                        // TODO: The following cache code will not work with $options['postprocessor'] undefined.
-/*
-                        # $cache initialization code adapted from W3TC's Minify_Controller_Version1::setupSources()
-                        # and Minify0_Minify::setCache() methods.
-                        $cache = NULL;
-                        if ( MINIFY_USE_CACHE ) {
-                            $cacheDir = defined( 'MINIFY_CACHE_DIR' ) ? MINIFY_CACHE_DIR : '';
-                            $cache      new \W3TC\Minify_Cache_File($cacheDir, TRUE );
-                        }
+                        $minify = \W3TC\Dispatcher::component( 'Minify_MinifiedFileRequestHandler' );
+                        $cache  = $minify->_get_cache();
                         if ( NULL !== $cache && ! $options['debug'] ) {
                             # $cacheId initialization code adapted from W3TC'S Minify0_Minify::_getCacheId() method.
                             $cacheId = md5( serialize( [
-                                                           \W3TC\Minify_Source::getDigest( $controller->sources ),
+                                                           Minify_Source::getDigest( $controller->sources ),
                                                            $options['minifiers'],
                                                            $options['minifierOptions'],
                                                            $options['postprocessor'],
                                                            $options['bubbleCssImports'],
                                                            $options['processCssImports']
                                                        ] ) );
+                            error_log( 'ob_start():callback(): $cacheId=' . $cacheId );
                             # The cache code adapted from W3TC's Minify0_Minify::serve() method.
-                            $cache->store($cacheId, $content);
-                            if ( function_exists('brotli_compress') && $options['encodeMethod'] === 'br' && $options['encodeOutput'] ) {
-                                $compressed            = $content;
-                                $compressed['content'] = brotli_compress($content['content']);
-                                $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed );
-                            }
-                            if ( function_exists( 'gzencode' ) && $options['encodeMethod'] && $options['encodeMethod'] !== 'br'
-                                    && $options['encodeOutput'] ) {
-                                $compressed            = $content;
-                                $compressed['content'] = gzencode($content['content'], $options['encodeLevel'] );
-                                $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed) ;
+                            $cache->store( $cacheId, $content );
+                            if ( $options['encodeOutput'] ) {
+                                if ( function_exists('brotli_compress') && $options['encodeMethod'] === 'br' ) {
+                                    $compressed            = $content;
+                                    $compressed['content'] = brotli_compress($content['content']);
+                                    $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed );
+                                }
+                                if ( function_exists( 'gzencode' ) && $options['encodeMethod'] && $options['encodeMethod'] !== 'br' ) {
+                                    $compressed            = $content;
+                                    $compressed['content'] = gzencode($content['content'], $options['encodeLevel'] );
+                                    $cache->store( $cacheId . '_' . $options['encodeMethod'], $compressed ) ;
+                                }
                             }
                         }
- */
-                        return $content;
+                        return $content['content'];
                     }   # if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                 }   # if ( $response_code == 500 ) {
                 return $buffer;
@@ -1901,6 +1897,8 @@ EOD
         $content        = [];
         $originalLength = 0;
         foreach ( $controller->sources as $source ) {
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+            self::print_r( $source,  '$source' );
             $sourceContent   = $source->getContent();
             $originalLength += strlen($sourceContent);
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
@@ -1908,19 +1906,19 @@ EOD
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify():gettype( $source->minifier )=' . gettype( $source->minifier ) );
             }
             // allow the source to override our minifier and options
-            $minifier = ( NULL !== $source->minifier )      ? $source->minifier                                      : $defaultMinifier;
-            $options  = ( NULL !== $source->minifyOptions ) ? array_merge( $defaultOptions, $source->minifyOptions ) : $defaultOptions;
+            $minifier         = ( NULL !== $source->minifier )      ? $source->minifier                                      : $defaultMinifier;
+            $minifier_options = ( NULL !== $source->minifyOptions ) ? array_merge( $defaultOptions, $source->minifyOptions ) : $defaultOptions;
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                 self::print_r( $source,  '$source' );
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify():$minifier=' . self::callable_to_string( $minifier ) );
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-                self::print_r( $options, '$options' );
+                self::print_r( $minifier_options, '$minifier_options' );
             }
             # Skip already minified JavaScript files, especially since the "YUI Compressor" aborts on some minified JavaScript files.
             if ( $minifier && self::is_minified_javascript( $sourceContent ) !== TRUE ) {
                 try {
-                    $content[] = call_user_func( $minifier, $sourceContent, $options );
+                    $content[] = call_user_func( $minifier, $sourceContent, $minifier_options );
                 } catch ( Exception $e ) {
                     # Minification failed so just emit the unminified JavaScript file.
                     $content[] = $sourceContent;
@@ -1944,10 +1942,10 @@ EOD
         }
         $content = implode($implodeSeparator, $content);
         // do any post-processing (esp. for editing build URIs)
-        if ( FALSE && $options['postprocessorRequire'] ) {   // TODO: PHP Notice:  Undefined index: postprocessorRequire
+        if ( $options['postprocessorRequire'] ) {
             require_once $options['postprocessorRequire'];
         }
-        if ( FALSE && $options['postprocessor'] ) {   // TODO: PHP Notice:  Undefined index: postprocessor
+        if ( $options['postprocessor'] ) {
             $content = call_user_func( $options['postprocessor'], $content, $type );
         }
         return [ 'originalLength' => $originalLength, 'content' => $content ];
