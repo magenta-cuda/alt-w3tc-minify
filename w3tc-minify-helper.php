@@ -1509,8 +1509,6 @@ EOD
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
-                        error_log( 'ob_start():callback():' );
-                        self::print_r( $options, '$options' );
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():' );
                             self::print_r( $options, '$options' );
@@ -1887,27 +1885,29 @@ EOD
         // allow the user to pass a particular array of options to each
         // minifier (designated by type). source objects may still override
         // these
-        $defaultOptions  = isset( $options['minifierOptions'][ $type ] ) ? $options['minifierOptions'][ $type ] : [];
         // if minifier not set, default is no minification. source objects
         // may still override this
         $defaultMinifier = isset( $options['minifiers'][ $type ] )       ? $options['minifiers'][$type]         : FALSE;
+        $default_options = isset( $options['minifierOptions'][ $type ] ) ? $options['minifierOptions'][ $type ] : [];
         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify():$defaultMinifier=' . self::callable_to_string( $defaultMinifier ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): $defaultMinifier=' . self::callable_to_string( $defaultMinifier ) );
+            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+            self::print_r( $default_options, '$default_options' );
         }
         $content        = [];
         $originalLength = 0;
         foreach ( $controller->sources as $source ) {
-            error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
-            self::print_r( $source,  '$source' );
-            $sourceContent   = $source->getContent();
-            $originalLength += strlen($sourceContent);
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
+                self::print_r( $source,  '$source' );
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify():(NULL !== $source->minifier)=' . ( ( NULL !== $source->minifier ) ? 'TRUE' : 'FALSE' ) );
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify():gettype( $source->minifier )=' . gettype( $source->minifier ) );
             }
+            $sourceContent   = $source->getContent();
+            $originalLength += strlen($sourceContent);
             // allow the source to override our minifier and options
-            $minifier         = ( NULL !== $source->minifier )      ? $source->minifier                                      : $defaultMinifier;
-            $minifier_options = ( NULL !== $source->minifyOptions ) ? array_merge( $defaultOptions, $source->minifyOptions ) : $defaultOptions;
+            $minifier         = ( NULL !== $source->minifier )      ? $source->minifier                                       : $defaultMinifier;
+            $minifier_options = ( NULL !== $source->minifyOptions ) ? array_merge( $default_options, $source->minifyOptions ) : $default_options;
             if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                 error_log( 'MC_Alt_W3TC_Minify::combine_minify(): ' );
                 self::print_r( $source,  '$source' );
