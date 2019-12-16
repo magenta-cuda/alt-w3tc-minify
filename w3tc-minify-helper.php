@@ -1433,7 +1433,7 @@ EOD
         $w3tc_cache_minify_dir_prefix_len = strlen( $w3tc_cache_minify_dir_prefix );
         if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
             && ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
-            error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
+            # error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
             ob_start( function( $buffer ) {
                 $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
@@ -1520,6 +1520,28 @@ EOD
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():$content=' . $content . '#####' );
                         }
+                        // TODO: cache the minified JavaScript file in W3TC's cache. Adapt code from Minify0_Minify::serve() method.
+/*
+                        # The following code adapted from code in Minify0_Minify::serve() method.
+                        if (null !== self::$_cache && ! self::$_options['debug']) {
+                            self::$_cache->store($cacheId, $content);
+                            if (function_exists('brotli_compress') && self::$_options['encodeMethod'] === 'br' && self::$_options['encodeOutput']) {
+                                $compressed = $content;
+                                $compressed['content'] = brotli_compress($content['content']);
+
+                                self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
+                                    $compressed);
+                            }
+                            if (function_exists('gzencode') && self::$_options['encodeMethod'] && self::$_options['encodeMethod'] !== 'br' && self::$_options['encodeOutput']) {
+                                $compressed = $content;
+                                $compressed['content'] = gzencode($content['content'],
+                                    self::$_options['encodeLevel']);
+
+                                self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
+                                    $compressed);
+                            }
+                        }
+ */
                         return $content;
                     }   # if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                 }   # if ( $response_code == 500 ) {
@@ -1530,7 +1552,7 @@ EOD
             error_log( 'Exception:$ex=' . print_r( $ex, true ) );
         } );
         if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
-            error_log( 'register_shutdown_function():called' );
+            # error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():register_shutdown_function():called' );
             register_shutdown_function( function( ) use ( $w3tc_cache_minify_dir_prefix, $w3tc_cache_minify_dir_prefix_len ) {
                 # The following shows that when shutdown functions are called output buffering has already been completely unwound.
                 # $ob_status = ob_get_status( TRUE );
@@ -1771,8 +1793,9 @@ EOD
                 }
                 return $length;
             }
-            # Be careful because in a JavaScript regular expressions the backslash '\' can be escaped e.g. var a=/'|\\/g;
-            if ( $pos > $start && $buffer[ $pos - 1 ] === '\\' && ( $delim !== '/' || $pos < $start + 2 || $buffer[ $pos - 2 ] !== '\\' ) ) {
+            # Is this an escaped delimiter?
+            # Be careful because in a JavaScript string or regular expression the backslash '\' can be itself escaped e.g. var a=/'|\\/g;
+            if ( $pos > $start && $buffer[ $pos - 1 ] === '\\' && ( $pos < $start + 2 || $buffer[ $pos - 2 ] !== '\\' ) ) {
                 $offset = $pos + 1;
                 continue;
             }
