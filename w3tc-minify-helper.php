@@ -1431,10 +1431,11 @@ EOD
         $parsed                           = parse_url( $url );
         $w3tc_cache_minify_dir_prefix     = '/' . trim( $parsed['path'], '/' ) . '/';
         $w3tc_cache_minify_dir_prefix_len = strlen( $w3tc_cache_minify_dir_prefix );
+        $w3tc_cache_minify_filename       = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], $w3tc_cache_minify_dir_prefix_len ) );
         if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
             && ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
             # error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
-            ob_start( function( $buffer ) {
+            ob_start( function( $buffer ) use ( $w3tc_cache_minify_filename ) {
                 $ob_status     = ob_get_status( TRUE );
                 $response_code = http_response_code( );
                 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
@@ -1523,6 +1524,8 @@ EOD
                         $minify = \W3TC\Dispatcher::component( 'Minify_MinifiedFileRequestHandler' );
                         $cache  = $minify->_get_cache();
                         if ( NULL !== $cache && ! $options['debug'] ) {
+                            /*
+                             * The following is probably wrong because it never runs as $cacheId is already set otherwise.
                             # $cacheId initialization code adapted from W3TC'S Minify0_Minify::_getCacheId() method.
                             $cacheId = md5( serialize( [
                                                            Minify_Source::getDigest( $controller->sources ),
@@ -1532,6 +1535,8 @@ EOD
                                                            $options['bubbleCssImports'],
                                                            $options['processCssImports']
                                                        ] ) );
+                             */
+                            $cacheId = $w3tc_cache_minify_filename;
                             error_log( 'ob_start():callback(): $cacheId=' . $cacheId );
                             # The cache code adapted from W3TC's Minify0_Minify::serve() method.
                             $cache->store( $cacheId, $content );
@@ -1559,7 +1564,7 @@ EOD
         } );
         if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
             # error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():register_shutdown_function():called' );
-            register_shutdown_function( function( ) use ( $w3tc_cache_minify_dir_prefix, $w3tc_cache_minify_dir_prefix_len ) {
+            register_shutdown_function( function( ) use ( $w3tc_cache_minify_dir_prefix, $w3tc_cache_minify_dir_prefix_len, $w3tc_cache_minify_filename ) {
                 # The following shows that when shutdown functions are called output buffering has already been completely unwound.
                 # $ob_status = ob_get_status( TRUE );
                 # error_log( 'register_shutdown_function():callback():$ob_status=' . print_r( $ob_status, true ) );
@@ -1575,9 +1580,9 @@ EOD
                         $filename = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], strlen( $prefix ) ) );
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( "register_shutdown_function():callback():HTTP request for \"{$_SERVER['REQUEST_URI']}\" failed." );
-                            error_log( "register_shutdown_function():callback():HTTP request for minified file \"$filename\" failed." );
+                            error_log( "register_shutdown_function():callback():HTTP request for minified file \"$w3tc_cache_minify_filename\" failed." );
                         }
-                        self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$filename\" failed.", TRUE );
+                        self::add_notice( self::PLUGIN_NAME . ": HTTP request for minified file \"$w3tc_cache_minify_filename\" failed.", TRUE );
                     }
                 }
             } );
