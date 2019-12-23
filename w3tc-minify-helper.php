@@ -136,18 +136,24 @@
  *
  */
 
-# if ( TRUE ) {   # development
+if ( TRUE ) {   # development
 #                                              1234567812345678
-if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
-    #                                                             1234567812345678
-    define( 'MC_AWM_191208_DEBUG_OFF',                          0x0000000000000000 );
-    define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',           0x0000000000000001 );   # This enables WP-CLI unit testing
-    define( 'MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER', 0x0000000000000002 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST',           0x0000000000000004 );
+# if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
+    #                                                                   1234567812345678
+    define( 'MC_AWM_191208_DEBUG_OFF',                                0x0000000000000000 );
+    define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                 0x0000000000000001 );   # This enables WP-CLI unit testing
+    define( 'MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER',       0x0000000000000002 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST',                 0x0000000000000004 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST', 0x0000000000000010 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST',  0x0000000000000020 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST'  , 0x0000000000000040 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
                                    # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
                                    # | MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
@@ -1417,8 +1423,10 @@ EOD
         # only non inline <script> elements and since there are none of these it sees an empty batch. However, the monitor's
         # minifier has batched the inline <script> elements and it needs W3TC to run its minifier as the monitor's minifier
         # runs on a filter in W3TC's minifier code. To solve this we will emit dummy <head> and <body> <script> elements.
-        wp_enqueue_script('mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
-        wp_enqueue_script('mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
+        add_action( 'wp_enqueue_scripts', function( ) {
+            wp_enqueue_script( 'mc_w3tcm-dummy-fe-head', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-head.js', [], FALSE, FALSE );
+            wp_enqueue_script( 'mc_w3tcm-dummy-fe-body', plugin_dir_url(__FILE__) . 'mc_w3tcm-dummy-fe-body.js', [], FALSE, TRUE  );
+        } );
         # When the JavaScript minifier aborts W3TC throws an exception and returns a HTTP 500 response. It is possible to do
         # something better - i.e., just return the raw unminified files. We will do this by using PHP's output buffering
         # to completely replace the HTTP response emitted by W3TC.
@@ -2004,6 +2012,33 @@ EOD
         }
     }
 }   # MC_Alt_W3TC_Minify
+
+if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & ( MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
+        | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST ) ) {
+
+class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
+    # This is for testing my auto minifier against specified cases.
+    public static function init() {
+        add_action( 'wp_enqueue_scripts', function( ) {
+            wp_enqueue_script( 'mc_w3tcm-test', plugin_dir_url(__FILE__) . 'mc_w3tcm-test.js', [], FALSE, FALSE );
+            if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST ) {
+                # inject a inline JavaScript before the test script
+                wp_add_inline_script( 'mc_w3tcm-test', 'var mcW3tcmTest="BEFORE";', 'before' );
+            }
+            if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST ) {
+                # inject a inline JavaScript after the test script
+                wp_add_inline_script( 'mc_w3tcm-test', 'var mcW3tcmTest="AFTER";',  'after' );
+            }
+            if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST ) {
+                # inject a conditional JavaScript file for test script
+                wp_script_add_data( 'mc_w3tcm-test', 'conditional', 'lt IE 9' );
+            }
+        } );
+    }
+}   # class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
+MC_Alt_W3TC_Minify_Script_Tester::init();
+
+}   # if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & ( MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
 
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER ) {
 
