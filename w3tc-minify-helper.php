@@ -149,6 +149,8 @@ if ( TRUE ) {   # development
     define( 'MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST'  , 0x0000000000000040 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST',      0x0000000000000080 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST',     0x0000000000000100 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST',          0x0000000000000200 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
                                    # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
@@ -158,6 +160,8 @@ if ( TRUE ) {   # development
                                    # | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
                                    | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST
                                    | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
@@ -2019,7 +2023,8 @@ EOD
 
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & ( MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
-        | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST ) ) {
+        | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
+        | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST ) ) {
 
 class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     # This is for testing my auto minifier against specified cases.
@@ -2043,8 +2048,28 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
                 # inject a localize inline JavaScript for test script
                 wp_localize_script( 'mc_w3tcm-test', 'mcW3tcmLocalizeTest', [ 'alpha' => 'Hello', 'beta' => 'World' ] );
             }
-        } );
-    }
+        } );   # add_action( 'wp_enqueue_scripts', function( ) {
+        if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST ) {
+            # inject a inline JavaScript using action wp_head
+            add_action('wp_head', function( ) {
+?>
+<script>
+    var mcW3tcmActionHeadTest = "wp_head";
+</script>
+<?php
+            } );
+        }
+        if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST ) {
+            # inject a inline JavaScript using action wp_footer
+            add_action('wp_footer', function( ) {
+?>
+<script>
+    var mcW3tcmActionFooterTest = "wp_footer";
+</script>
+<?php
+            } );
+        }
+    }   # public static function init() {
 }   # class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
 MC_Alt_W3TC_Minify_Script_Tester::init();
 
