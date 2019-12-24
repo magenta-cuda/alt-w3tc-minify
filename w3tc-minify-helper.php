@@ -2021,17 +2021,17 @@ EOD
     }
 }   # MC_Alt_W3TC_Minify
 
-if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & ( MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
+if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
-        | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
-        | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST ) ) {
+        | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST     | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
+        | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST         | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST ) ) {
 
 class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     # This is for testing my auto minifier against specified cases.
     public static function init() {
         add_action( 'wp_enqueue_scripts', function( ) {
             $in_footer = (boolean) ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST );
-            wp_enqueue_script( 'mc_w3tcm-test', plugin_dir_url(__FILE__) . 'mc_w3tcm-test.js', [], FALSE, $in_footer );
+            wp_enqueue_script( 'mc_w3tcm-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test.js', [], FALSE, $in_footer );
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST ) {
                 # inject a inline JavaScript before the test script
                 wp_add_inline_script( 'mc_w3tcm-test', 'var mcW3tcmBeforeTest="BEFORE";', 'before' );
@@ -2079,14 +2079,14 @@ if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEB
 
 class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     # The following is for unit testing MC_Alt_W3TC_Minify::is_minified_javascript() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_is_minified_javascript("test-1.js");'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_is_minified_javascript("unit-test-1.js");'
     public static function wp_cli_test_is_minified_javascript( $file ) {
         $buffer = file_get_contents( $file );
         $ret    = self::is_minified_javascript( $buffer );
         echo 'is_minified_javascript()=' . ( is_null( $ret ) ? 'NULL' : ( $ret ? 'TRUE' : 'FALSE' ) );
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::sanitize_for_var_statment_processing() using WP-CLI.
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_sanitize_for_var_statment_processing("test-1.js");'
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_sanitize_for_var_statment_processing("unit-test-1.js");'
     public static function wp_cli_test_sanitize_for_var_statment_processing( $file ) {
         $buffer   = file_get_contents( $file );
         $name     = basename( $file, 'js' );
@@ -2095,7 +2095,7 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
     }
     # The following is for unit testing MC_Alt_W3TC_Minify::parse_js_var_statement() using WP-CLI.
     # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();'
-    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();' < test-2.js
+    # php wp-cli.phar eval 'MC_Alt_W3TC_Minify_Unit_Tester::wp_cli_test_parse_js_var_statement();' < unit-test-2.js
     public static function wp_cli_test_parse_js_var_statement( ) {
         while ( TRUE ) {
             fwrite( STDERR, '> ' );
