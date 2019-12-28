@@ -1,5 +1,9 @@
 # Update of December 2019
 
+In December 2019 W3TC released a new version 0.12.0. With respect to JavaScript
+minification my analysis is still valid. The problems found in the analysis have not
+been fixed.
+
 ## The YUI Compressor does not always work.
 
 After unsuccessfully trying to get JavaScript minification using the "YUI Compressor" to work
