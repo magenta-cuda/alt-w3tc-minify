@@ -121,6 +121,7 @@
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_excluded_tag_script_minification", TRUE );'
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_file_handler_minify_options", TRUE );'
  *
  * To show the state of the monitor run the following WP-CLI command:
  *
@@ -153,15 +154,15 @@ if ( TRUE ) {   # development
     define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
-                                   # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
+                                   | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
                                    # | MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
@@ -252,6 +253,7 @@ class MC_Alt_W3TC_Minify {
     private static $inline_script_conditional = NULL;
     private static $inline_script_embed_pos   = NULL;
     private static $w3tc_minify_helpers       = NULL;
+    private static $serve_options             = NULL;
     public static function init() {
         self::$debug = get_option( self::OPTION_DEBUG );
         if ( ! is_dir( self::OUTPUT_DIR ) || ! is_writable( self::OUTPUT_DIR ) ) {
@@ -1424,6 +1426,21 @@ EOD
                 return $minify_filename;
             }, 10, 3 );
         }
+        if ( self::non_short_circuit_or( self::$auto_minify,
+                $monitor = ! empty( $options['FILTER::w3tc_minify_file_handler_minify_options'] ) ) ) {
+            # This filter is new in W3TC version 0.12.0.
+            add_filter( 'w3tc_minify_file_handler_minify_options', function( $serve_options ) use ( $monitor ) {
+                if ( $monitor ) {
+                    error_log( 'FILTER::w3tc_minify_file_handler_minify_options():' );
+                    self::print_r( $serve_options, '$serve_options' );
+                    self::print_r( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ), 'backtrace' );
+                }
+                if ( self::$auto_minify ) {
+                    self::$serve_options = $serve_options;
+                }
+                return $serve_options;
+            } );
+        }
         if ( ! self::$auto_minify ) {
             return FALSE;
         }
@@ -1520,9 +1537,16 @@ EOD
                                 $engine                                   = 'js';
                             }
                         }
+                        // TODO: Can we replace the following with self::$serve_options?
                         $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
                         $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
                         $controller                                       = new Minify_Controller_MinApp( );
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
+                            error_log( 'ob_start():callback():' );
+                            self::print_r( $serve_options, '$serve_options' );
+                            error_log( 'ob_start():callback():' );
+                            self::print_r( self::$serve_options, 'self::$serve_options' );
+                        }
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
