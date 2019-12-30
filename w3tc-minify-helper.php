@@ -1426,20 +1426,22 @@ EOD
                 return $minify_filename;
             }, 10, 3 );
         }
-        if ( self::non_short_circuit_or( self::$auto_minify,
-                $monitor = ! empty( $options['FILTER::w3tc_minify_file_handler_minify_options'] ) ) ) {
-            # This filter is new in W3TC version 0.12.0.
-            add_filter( 'w3tc_minify_file_handler_minify_options', function( $serve_options ) use ( $monitor ) {
-                if ( $monitor ) {
-                    error_log( 'FILTER::w3tc_minify_file_handler_minify_options():' );
-                    self::print_r( $serve_options, '$serve_options' );
-                    self::print_r( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ), 'backtrace' );
-                }
-                if ( self::$auto_minify ) {
-                    self::$serve_options = $serve_options;
-                }
-                return $serve_options;
-            } );
+        # Filter 'w3tc_minify_file_handler_minify_options' is new in W3TC version 0.12.0.
+        if ( version_compare( W3TC_VERSION, '0.12.0', '>=' ) ) {
+            if ( self::non_short_circuit_or( self::$auto_minify,
+                    $monitor = ! empty( $options['FILTER::w3tc_minify_file_handler_minify_options'] ) ) ) {
+                add_filter( 'w3tc_minify_file_handler_minify_options', function( $serve_options ) use ( $monitor ) {
+                    if ( $monitor ) {
+                        error_log( 'FILTER::w3tc_minify_file_handler_minify_options():' );
+                        self::print_r( $serve_options, '$serve_options' );
+                        self::print_r( debug_backtrace( DEBUG_BACKTRACE_IGNORE_ARGS ), 'backtrace' );
+                    }
+                    if ( self::$auto_minify ) {
+                        self::$serve_options = $serve_options;
+                    }
+                    return $serve_options;
+                } );
+            }
         }
         if ( ! self::$auto_minify ) {
             return FALSE;
@@ -1537,10 +1539,14 @@ EOD
                                 $engine                                   = 'js';
                             }
                         }
-                        // TODO: Can we replace the following with self::$serve_options?
-                        $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
-                        $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
-                        $controller                                       = new Minify_Controller_MinApp( );
+                        # From W3TC version 0.12.0 self::$serve_options will be available.
+                        if ( self::$serve_options !== NULL ) {
+                            $serve_options = self::$serve_options;
+                        } else {
+                            $serve_options['minifiers'][$minifier_type]       = $w3_minifier->get_minifier( $engine );
+                            $serve_options['minifierOptions'][$minifier_type] = $w3_minifier->get_options( $engine );
+                        }
+                        $controller = new Minify_Controller_MinApp( );
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():' );
                             self::print_r( $serve_options, '$serve_options' );
