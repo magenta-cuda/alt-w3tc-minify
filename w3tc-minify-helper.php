@@ -1556,7 +1556,7 @@ EOD
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
-                        // Determine the encoding that Minify0_Minify::serve() uses.
+                        // Determine the same encoding that Minify0_Minify::serve() uses. (Following extracted from Minify0_Minify::serve().)
                         if ( $options['encodeOutput'] ) {
                             $sendVary = TRUE;
                             if ( $options['encodeMethod'] !== NULL ) {
@@ -1617,6 +1617,31 @@ EOD
                             }
                         }
                         // TODO: Some HTTP headers are missing or wrong! (Find out how W3TC is setting the HTTP headers.)
+
+                        // Determine the same HTTP headers that Minify0_Minify::serve() generates. (Following extracted from Minify0_Minify::serve().)
+/*
+                        $cgOptions = [
+                                         'lastModifiedTime' => $options['lastModifiedTime'],
+                                         'cacheHeaders'     => $options['cacheHeaders'],
+                                         'isPublic'         => $options['isPublic'],
+                                         'encoding'         => $options['encodeMethod']
+                                     ];
+                        if ( $options['maxAge'] > 0 ) {
+                            $cgOptions['maxAge']     = $options['maxAge'];
+                        } elseif ( $options['debug'] ) {
+                            $cgOptions['invalidate'] = TRUE;
+                        }
+                        $cg      = new HTTP_ConditionalGet( $cgOptions );
+                        $headers = $cg->getHeaders( );
+                        unset( $cg );
+
+                        ... # TODO: still more needed here
+
+                        foreach ( $headers as $name => $val ) {
+                            header( $name . ': ' . $val );
+                        }
+
+ */
                         header( 'Content-Type: application/x-javascript' );   // TODO: This is a temporary hack.
                         return $content['content'];
                     }   # if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
