@@ -1556,6 +1556,23 @@ EOD
                         $options                                          = $controller->setupSources( $serve_options );
                         $options                                          = $controller->analyzeSources( $options );
                         $options                                          = $controller->mixInDefaultOptions( $options );
+                        // Determine the encoding that Minify0_Minify::serve() uses.
+                        if ( $options['encodeOutput'] ) {
+                            $sendVary = TRUE;
+                            if ( $options['encodeMethod'] !== NULL ) {
+                                // controller specifically requested this
+                                $contentEncoding = $options['encodeMethod'];
+                            } else {
+                                // sniff request header
+                                // depending on what the client accepts, $contentEncoding may be
+                                // 'x-gzip' while our internal encodeMethod is 'gzip'. Calling
+                                // getAcceptedEncoding(false, false) leaves out compress and deflate as options.
+                                list( $options['encodeMethod'], $contentEncoding ) = HTTP_Encoder::getAcceptedEncoding( FALSE, FALSE );
+                                $sendVary = ! HTTP_Encoder::isBuggyIe();
+                            }
+                        } else {
+                            self::$_options['encodeMethod'] = ''; // identity (no encoding)
+                        }
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                             error_log( 'ob_start():callback():' );
                             self::print_r( $options, '$options' );
@@ -1599,6 +1616,8 @@ EOD
                                 }
                             }
                         }
+                        // TODO: Some HTTP headers are missing or wrong! (Find out how W3TC is setting the HTTP headers.)
+                        header( 'Content-Type: application/x-javascript' );   // TODO: This is a temporary hack.
                         return $content['content'];
                     }   # if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                 }   # if ( $response_code == 500 ) {
