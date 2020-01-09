@@ -107,7 +107,7 @@
  * details on how the "auto mode" JavaScript minifier of W3TC works and optionally replace W3TC's minifier with
  * this plugin's minifier. This should reduce the number of minified files emitted.
  *
- * The following WP-CLI commands will monitor W3TC's "minify auto js" filters:
+ * The following WP-CLI commands will enable/disable monitoring of W3TC's "minify auto js" filters:
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
@@ -122,6 +122,8 @@
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_file_handler_minify_options", TRUE );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::clear_monitor_minify_autojs_options( );'
  *
  * To show the state of the monitor run the following WP-CLI command:
  *
@@ -154,7 +156,7 @@ if ( TRUE ) {   # development
     define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
-                                   | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
+                                   # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
                                    # | MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST
@@ -1070,21 +1072,21 @@ EOD
                         foreach ( $matches as $match ) {
                             # error_log( 'FILTER::w3tc_process_content():$match[0]=' . $match[0] );
                             # error_log( 'FILTER::w3tc_process_content():$match[1]=' . $match[1] );
-                            error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] . '####' );
+                            # error_log( 'FILTER::w3tc_process_content():$match[2]=' . $match[2] . '####' );
                             if ( preg_match( '#<script.+?</script>#s', $match[2], $script_matches ) === 1 ) {
                                 # $match[2] should always have a <script> element but may be padded with spaces or other text
                                 # so extract exactly just the <script> element
-                                error_log( 'FILTER::w3tc_process_content():$script_matches[0]=' . $script_matches[0] . '####' );
+                                # error_log( 'FILTER::w3tc_process_content():$script_matches[0]=' . $script_matches[0] . '####' );
                                 $conditional_scripts[] = $script_matches[0];
                             }
                         }
                         self::$conditional_scripts = $conditional_scripts;
                         if ( preg_match_all( '~(<script\s*[^>]*>.*?</script>|</head>)~is', $buffer, $matches ) ) {
                             self::$all_scripts = $all_scripts = $matches[1];
-                            foreach ( $conditional_scripts as $conditional_script ) {
-                                $conditional_script_index = array_search( $conditional_script, $all_scripts );
-                                error_log( 'FILTER::w3tc_process_content():$conditional_script_index=' . $conditional_script_index );
-                            }
+                            # foreach ( $conditional_scripts as $conditional_script ) {
+                            #     $conditional_script_index = array_search( $conditional_script, $all_scripts );
+                            #     error_log( 'FILTER::w3tc_process_content():$conditional_script_index=' . $conditional_script_index );
+                            # }
                         }
                     }   # if ( $matches = self::check_for_conditional_html( $buffer ) ) {
                 }   # if ( self::$auto_minify ) {
@@ -1193,7 +1195,7 @@ EOD
                     if ( self::$conditional_scripts && in_array( $script_tag, self::$conditional_scripts ) ) {
                         # This is a conditionally loaded script. Conditionally loaded scripts will be processed
                         # by the later filter 'w3tc_minify_js_do_excluded_tag_script_minification'.
-                        error_log( 'FILTER::w3tc_minify_js_do_tag_minification():HTML comment conditional script=' . $script_tag . '####' );
+                        # error_log( 'FILTER::w3tc_minify_js_do_tag_minification():HTML comment conditional script=' . $script_tag . '####' );
                         return false;
                     }
                     if ( $do_tag_minification ) {
@@ -1688,9 +1690,15 @@ EOD
             @unlink( $filename );
         }
     }
-    public static function set_monitor_minify_autojs_options($name, $value) {
+    public static function set_monitor_minify_autojs_options( $name, $value ) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
         $options[ $name ] = $value;
+        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+    }
+    public static function clear_monitor_minify_autojs_options( ) {
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+        $option  = $options[ self::AUTO_MINIFY_OPTION ];
+        $options = [ self::AUTO_MINIFY_OPTION => $option ];
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
     }
     public static function toggle_auto_minify_option() {
@@ -1703,16 +1711,16 @@ EOD
     private static function check_for_conditional_html( $buffer ) {
         # if ( preg_match_all( '#<!--(\[if\s.+?\])>.*?(<script.+?</script>).*?<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
         if ( preg_match_all( '#<!--(\[if\s.+?\])>(.*?)<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
-            error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
-            self::print_r( $matches, '$matches' );
+            # error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
+            # self::print_r( $matches, '$matches' );
             foreach ( $matches as &$match ) {
                 if ( strpos( $match[2], '<script' ) === FALSE ) {
                     $match = FALSE;
                 }
             }
             $matches = array_values( array_filter( $matches ) );
-            error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
-            self::print_r( $matches, '$matches' );
+            # error_log( 'MC_Alt_W3TC_Minify::check_for_conditional_html():' );
+            # self::print_r( $matches, '$matches' );
             return $matches;
         }
         return FALSE;
