@@ -749,16 +749,18 @@ EOD
                 do_action( "wp_ajax_{$ajax_action}" );
             } );
         }
-        # Purge my auto minify cache when W3TC purges its cache.
-        add_action( 'w3tc_flush_minify', 'MC_Alt_W3TC_Minify::purge_auto_minify_cache' );
-        add_action( 'load-performance_page_w3tc_general', function( ) {
-            # The "Empty cache" button of the "Minify" section of the "General Settings" page will not do the action 'w3tc_flush_minify' so ...
-            if ( ! empty( $_GET['page'] ) && $_GET['page'] === 'w3tc_general'
-                    && ! empty( $_GET['w3tc_note'] ) && $_GET['w3tc_note'] === 'flush_minify' ) {
-                # error_log( 'action::performance_page_w3tc_general():$_GET=' . print_r( $_GET, true ) );
-                MC_Alt_W3TC_Minify::purge_auto_minify_cache( );
-            }
-        } );
+        if ( ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) && ! empty( $options[ self::AUTO_MINIFY_OPTION ] ) ) {
+            # Purge my auto minify cache when W3TC purges its cache.
+            add_action( 'w3tc_flush_minify', 'MC_Alt_W3TC_Minify::purge_auto_minify_cache' );
+            add_action( 'load-performance_page_w3tc_general', function( ) {
+                # The "Empty cache" button of the "Minify" section of the "General Settings" page will not do the action 'w3tc_flush_minify' so ...
+                if ( ! empty( $_GET['page'] ) && $_GET['page'] === 'w3tc_general'
+                        && ! empty( $_GET['w3tc_note'] ) && $_GET['w3tc_note'] === 'flush_minify' ) {
+                    # error_log( 'action::performance_page_w3tc_general():$_GET=' . print_r( $_GET, true ) );
+                    MC_Alt_W3TC_Minify::purge_auto_minify_cache( );
+                }
+            } );
+        }
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
             self::reset();
