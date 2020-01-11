@@ -1707,20 +1707,37 @@ EOD
     }
     public static function set_monitor_minify_autojs_options( $name, $value ) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
-        $options[ $name ] = $value;
-        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        if ( $value ) {
+            $options[ $name ] = TRUE;
+        } else {
+            unset( $options[ $name ] );
+        }
+        if ( $options ) {
+            update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        } else {
+            delete_option( self::OPTION_MONITOR_MINIFY_AUTOJS );
+        }
     }
     public static function clear_monitor_minify_autojs_options( ) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
-        $option  = $options[ self::AUTO_MINIFY_OPTION ];
-        $options = [ self::AUTO_MINIFY_OPTION => $option ];
-        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        if ( ! empty( $options[ self::AUTO_MINIFY_OPTION ] ) ) {
+            update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ self::AUTO_MINIFY_OPTION => TRUE ] );
+        } else {
+            delete_option( self::OPTION_MONITOR_MINIFY_AUTOJS );
+        }
     }
     public static function toggle_auto_minify_option( ) {
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
-        $option  =& $options[ self::AUTO_MINIFY_OPTION ];
-        $option  = ! $option;
-        update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        if ( empty( $options[ self::AUTO_MINIFY_OPTION ] ) ) {
+            $options[ self::AUTO_MINIFY_OPTION ] = TRUE;
+        } else {
+            unset( $options[ self::AUTO_MINIFY_OPTION ] );
+        }
+        if ( $options ) {
+            update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
+        } else {
+            delete_option( self::OPTION_MONITOR_MINIFY_AUTOJS );
+        }
         return $option;
     }
     private static function check_for_conditional_html( $buffer ) {
