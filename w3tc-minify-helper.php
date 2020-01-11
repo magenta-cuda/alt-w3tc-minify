@@ -579,9 +579,14 @@ EOD
         # AJAX request to toggle the auto minify mode.
         # N.B. This AJAX request was not sent by XHR but as a normal HTTP request
         # and will require special handling as a page needs to be returned.
-        add_action( 'wp_ajax_' . self::AJAX_TOGGLE_AUTO_MINIFY, function() {
+        add_action( 'wp_ajax_' . self::AJAX_TOGGLE_AUTO_MINIFY, function( ) {
             check_ajax_referer( self::AJAX_TOGGLE_AUTO_MINIFY );
-            $enabled = self::toggle_auto_minify_option();
+            if ( ! ( $enabled = self::toggle_auto_minify_option( ) ) ) {
+                # The cache is no longer valid.
+                $w3_minify = \W3TC\Dispatcher::component( 'CacheFlush' );
+                $w3_minify->minifycache_flush();
+                # TODO: Actually the cache is only partially invalidated so it needs to be partially cleared.
+            }
             self::add_notice( self::PLUGIN_NAME .': Auto Minify is ' . ( $enabled ? 'on.' : 'off.' ) );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
             # we need to redirect to return a page otherwise the browser will not have content.
@@ -1053,16 +1058,16 @@ EOD
     # monitor_minify_autojs() optionally can replace the minify processing of W3TC's Minify_AutoJs.php.
     # If get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] )[ self::AUTO_MINIFY_OPTION ] is TRUE then monitor_minify_autojs()
     # replaces the the minify processing of W3TC's Minify_AutoJs.php and also disables the manual minify processing of this plugin.
-    public static function monitor_minify_autojs() {
-        if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] ) ) ) {
+    public static function monitor_minify_autojs( ) {
+        if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] ) ) ) {
             return FALSE;
         }
         self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config( ) );
-        add_action( 'wp_head', function() {
+        add_action( 'wp_head', function( ) {
             # This is a way to insert a tag as the last item in the HTML <head> section.
             echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
         }, PHP_INT_MAX );
-        add_action( 'wp_footer', function() {
+        add_action( 'wp_footer', function( ) {
             # This is a way to insert a tag as the last item in the HTML <body> section.
             echo '<div style="display:none;">##### SHOULD BE LAST TAG IN BODY SECTION #####</div>';
         }, PHP_INT_MAX );
@@ -1690,8 +1695,8 @@ EOD
             } );
         }   # if ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) {
         return TRUE;
-    }   # public static function monitor_minify_autojs() {
-    public static function purge_auto_minify_cache() {
+    }   # public static function monitor_minify_autojs( ) {
+    public static function purge_auto_minify_cache( ) {
         # Since this only removes the disk files it must be called as a 'w3tc_flush_minify' action
         # as W3TC's code is needed to remove the corresponding map entries.
         # $filename = self::MINIFY_FILENAME_PREFIX . md5( $content ) . '.js';
@@ -1701,18 +1706,18 @@ EOD
         }
     }
     public static function set_monitor_minify_autojs_options( $name, $value ) {
-        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
         $options[ $name ] = $value;
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
     }
     public static function clear_monitor_minify_autojs_options( ) {
-        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
         $option  = $options[ self::AUTO_MINIFY_OPTION ];
         $options = [ self::AUTO_MINIFY_OPTION => $option ];
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
     }
-    public static function toggle_auto_minify_option() {
-        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] );
+    public static function toggle_auto_minify_option( ) {
+        $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
         $option  =& $options[ self::AUTO_MINIFY_OPTION ];
         $option  = ! $option;
         update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
