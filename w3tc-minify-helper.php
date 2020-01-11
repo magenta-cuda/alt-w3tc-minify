@@ -1,7 +1,7 @@
 <?php
 /*
  * Plugin Name: W3TC Minify Helper
- * Description: record the sent order of the JavaScript files and use this to create a W3TC Minify configuration
+ * Description: better JavaScript minification for W3TC's auto minify mode
  * Version: 2
  * Plugin URI: http://magentacuda.com/an-alternate-way-to-set-w3tc-minify-file-order/
  * Author: Magenta Cuda
@@ -26,7 +26,18 @@
 /*
  * This plugin contains excerpts fron the plugin "W3 Total Cache" by BoldGrid.
  * See https://wordpress.org/plugins/w3-total-cache/.
-/*
+ *
+ * VERSION 1 (for use with W3TC's manual minification mode for JavaScript files)
+ *
+ * The following is a description of version 1 of this plugin. Although still
+ * supported for backward compatibility I strongly recommend enabling version 2,
+ * as I think the design of W3TC “manual minify” mode prevents W3TC JavaScript
+ * minification in “manual minify” mode from being successful except under some
+ * quite restrictive conditions which will not be true for some modern WordPress
+ * web pages.To enable version 2 just click on the "Auto Minify:Xxx" link in this
+ * plugin's entry in the "Installed Plugins" admin page. This link toggles "Off"
+ * and "On" this plugin's minifier for W3TC'S auto minification mode.
+ *
  * The W3 Total Cache auto minify mode does not work on my web site. The problem
  * is the order of the JavaScript files using the auto minify mode is different
  * from the order without minification. This results in undefined JavaScript
@@ -102,6 +113,8 @@
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_theme_map");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_miscellaneous");'
  *     php wp-cli.phar eval 'unlink( MC_Alt_W3TC_Minify::OUTPUT_DIR . "/" . MC_Alt_W3TC_Minify::CONF_FILE_NAME );'
+ *
+ * VERSION 2 (for use with W3TC's auto minification mode for JavaScript files)
  *
  * Version 2 of this plugin implements a monitor of W3TC's "minify auto js" processing. This monitor can provide
  * details on how the "auto mode" JavaScript minifier of W3TC works and optionally replace W3TC's minifier with
@@ -2228,17 +2241,17 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
             fwrite( STDERR, print_r( $statistics, TRUE ) );
         }
     }
-}   # MC_Alt_W3TC_Minify_Unit_Tester
+}   # class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
 
 }   # if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER ) {
 
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
-    add_action( 'admin_init', function() {
+    add_action( 'admin_init', function( ) {
         if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
-            MC_Alt_W3TC_Minify::admin_init();
+            MC_Alt_W3TC_Minify::admin_init( );
         } else {
-            add_action( 'admin_notices', function() {
+            add_action( 'admin_notices', function( ) {
     ?>
     <div class="notice notice-info is-dismissible">
         Execution of the W3TC Minify Helper plugin aborted because the required W3 Total Cache plugin is not activated.
@@ -2250,10 +2263,10 @@ if ( defined( 'WP_ADMIN' ) ) {
 } else {
     // add_action( 'wp_loaded', function() {
     # MC_Alt_W3TC_Minify::init() must run before Minify_Plugin::init()
-    add_action( 'init', function() {
+    add_action( 'init', function( ) {
         include_once( ABSPATH . 'wp-admin/includes/plugin.php' );
         if ( is_plugin_active( MC_Alt_W3TC_Minify::W3TC_FILE ) ) {
-            MC_Alt_W3TC_Minify::init();
+            MC_Alt_W3TC_Minify::init( );
         }
     // } );
     }, 9 );
