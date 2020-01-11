@@ -1730,15 +1730,17 @@ EOD
         $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] );
         if ( empty( $options[ self::AUTO_MINIFY_OPTION ] ) ) {
             $options[ self::AUTO_MINIFY_OPTION ] = TRUE;
+            $enabled = TRUE;
         } else {
             unset( $options[ self::AUTO_MINIFY_OPTION ] );
+            $enabled = FALSE;
         }
         if ( $options ) {
             update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, $options );
         } else {
             delete_option( self::OPTION_MONITOR_MINIFY_AUTOJS );
         }
-        return $option;
+        return $enabled;
     }
     private static function check_for_conditional_html( $buffer ) {
         # if ( preg_match_all( '#<!--(\[if\s.+?\])>.*?(<script.+?</script>).*?<!\[endif\]-->#s', $buffer, $matches, PREG_SET_ORDER ) ) {
