@@ -34,7 +34,7 @@
  * as I think the design of W3TC “manual minify” mode prevents W3TC JavaScript
  * minification in “manual minify” mode from being successful except under some
  * quite restrictive conditions which will not be true for some modern WordPress
- * web pages.To enable version 2 just click on the "Auto Minify:Xxx" link in this
+ * web pages. To enable version 2 just click on the "Auto Minify:Xxx" link in this
  * plugin's entry in the "Installed Plugins" admin page. This link toggles "Off"
  * and "On" this plugin's minifier for W3TC'S auto minification mode.
  *
@@ -595,10 +595,13 @@ EOD
         add_action( 'wp_ajax_' . self::AJAX_TOGGLE_AUTO_MINIFY, function( ) {
             check_ajax_referer( self::AJAX_TOGGLE_AUTO_MINIFY );
             if ( ! ( $enabled = self::toggle_auto_minify_option( ) ) ) {
-                # The cache is no longer valid.
+                # Version 1 now enabled. W3TC's minify cache is no longer valid.
                 $w3_minify = \W3TC\Dispatcher::component( 'CacheFlush' );
                 $w3_minify->minifycache_flush();
-                # TODO: Actually the cache is only partially invalidated so it needs to be partially cleared.
+                # TODO: Actually the minify cache is only partially invalidated so it only needs to be partially cleared.
+            } else {
+                # Version 2 now enabled. So clear version 1's persistent data.
+                self::reset();
             }
             self::add_notice( self::PLUGIN_NAME .': Auto Minify is ' . ( $enabled ? 'on.' : 'off.' ) );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
