@@ -226,10 +226,10 @@ class MC_Alt_W3TC_Minify {
     private static $theme              = NULL;   # MD5 of the current theme
     private static $basename           = NULL;   # the basename of the current template in the current theme
     private static $the_data           = NULL;   # the database of this plugin
-    private static $files              = [
-                                             'include'        => [ 'files' => [] ],
-                                             'include-body'   => [ 'files' => [] ],
-                                             'include-footer' => [ 'files' => [] ]
+    private static $files              = [                                             # $files holds the ordered list of JavaScript
+                                             'include'        => [ 'files' => [] ],    # files emitted for the current theme and
+                                             'include-body'   => [ 'files' => [] ],    # template combination in the head, body and
+                                             'include-footer' => [ 'files' => [] ]     # footer sections.
                                         ];
     # admin-bar.js is a problem because every time the logged in status changes the "Admin Bar" will be inserted
     # or removed causing admin-bar.js to be added or removed from the ordered list of JavaScript files. This will
@@ -281,6 +281,8 @@ class MC_Alt_W3TC_Minify {
             # Auto minify is enabled so manual minify is disabled.
             return;
         }
+        # When W3TC is in manual minify mode its configuration file specifies the ordered list of JavaScript files to emit in the
+        # head, body and footer sections for the current theme and template combination.
         # Get additional files to skip.
         $files_to_skip        = file( __DIR__ . '/files-to-omit.ini', FILE_IGNORE_NEW_LINES );
         $files_to_skip        = $files_to_skip === FALSE ? [] : $files_to_skip;
@@ -303,7 +305,10 @@ class MC_Alt_W3TC_Minify {
         # It conditionally enables processing by setting self::$skip = FALSE which is by default set to TRUE.
         # It detects if the template was selected by the filter 'template_include'.
         add_filter( 'template_include', function( $template ) use ( &$initial_template ) {
-            # self::$theme is a MD5 hash of the theme path, the template and the stylesheet. 
+            # self::$theme is a MD5 hash of the theme path, the template and the stylesheet.
+            # N.B. get_template() returns a theme not a template, e.g. twentysixteen not single, archive, page, ...
+            # N.B. get_stylesheet() returns the child theme, e.g. twentysixteen-child
+            # self::$theme is a signature, i.e. identifier for the current theme
             self::$theme               = \W3TC\Util_Theme::get_theme_key( $map_theme_root = get_theme_root(), 
                                                                           $map_template   = get_template(),
                                                                           $map_stylesheet = get_stylesheet() );
@@ -366,6 +371,8 @@ EOD
         # <script type='text/javascript'>/* after script */</script>
         # <![endif]-->
         #
+        # The filter 'script_loader_tag' is used to record for the current theme and template combination the ordered list of
+        # JavaScript files as they are emitted in the head, body and footer sections.
         add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
             if ( self::$skip ) {
                 return $tag;
