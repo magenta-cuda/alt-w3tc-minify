@@ -1134,12 +1134,24 @@ EOD
                 return $buffer;
             } );
         }
+        # W3TC uses PHP's output buffering to rewrite the HTML sent to the browser. The filter 'w3tc_processed_content'
+        # is applied after all the rewriting by W3TC is done so this is a good place to dump the final HTML that will be
+        # sent to the browser.
         if ( ! empty( $options['FILTER::w3tc_processed_content'] ) ) {
             add_filter( 'w3tc_processed_content', function( $buffer ) {
                 \W3TC\Util_File::file_put_contents_atomic( self::OUTPUT_DIR . '/filter_w3tc_processed_content_buffer', $buffer );
                 return $buffer;
             } );
         }
+        # Before scanning the HTML buffer for <script> elements W3TC removes all HTML comments - <!-- ... -->. See
+        # Minify_AutoJs::execute().  Unfortunately, these comments may contain embedded <script> elements to be
+        # conditionally included, e.g.
+        # <!--[if lt IE 9]>
+        #     <script type='text/javascript'>...</script>
+        # <![endif]-->
+        # In order to process ALL <script> elements in the order as they occur in the HTML buffer we need to replace the
+        # list of <script> elements that the W3TC scan found with a list that also includes the conditionally included
+        # <script> elements. The filter 'w3tc_minify_js_script_tags' can be used to do this.
         if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_script_tags'] ) ) ) {
             add_filter( 'w3tc_minify_js_script_tags', function( $script_tags ) use ( $monitor ) {
                 if ($monitor ) {
@@ -1154,6 +1166,12 @@ EOD
                 return $script_tags;
             } );
         }
+        # The filter 'w3tc_minify_js_do_local_script_minification' is called when W3TC encounters an inline <script>
+        # element. When W3TC encounters an inline <script> element it flushes the combined contents of the currently
+        # collected <script> elements as a new <script> element and starts a new collection. See
+        # Minify_AutoJs::process_script_tag(). This is not ideal as this results in multiple <script> elements. Instead
+        # we will collect the inline <script> element by coping its content to a local file on the server and then
+        # handling it as an external <script> element and continue collecting to the same collection.
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) use ( $monitor ) {
