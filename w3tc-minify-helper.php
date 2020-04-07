@@ -255,8 +255,10 @@ class MC_Alt_W3TC_Minify {
     private static $all_scripts               = NULL;
     private static $conditional_scripts       = NULL;
     private static $skipped_scripts           = NULL;
-    # Since $files_to_minify of the class Minify_AutoJs is a private property we need a shadow of this property that we can modify.
+    # W3TC collects the JavaScript files in the property $files_to_minify of an Minify_AutoJs object. However,
+    # $files_to_minify of the class Minify_AutoJs is a private property ...
     # PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$files_to_minify
+    # so will maintain a shadow of this property that we can modify.
     private static $files_to_minify           = [];
     private static $files_to_minify_extras    = [];
     # $last_script_tag_is is the $last_script_tag seen by the filter 'w3tc_minify_js_do_flush_collected'
@@ -1169,9 +1171,9 @@ EOD
         # The filter 'w3tc_minify_js_do_local_script_minification' is called when W3TC encounters an inline <script>
         # element. When W3TC encounters an inline <script> element it flushes the combined contents of the currently
         # collected <script> elements as a new <script> element and starts a new collection. See
-        # Minify_AutoJs::process_script_tag(). This is not ideal as this results in multiple <script> elements. Instead
-        # we will collect the inline <script> element by coping its content to a local file on the server and then
-        # handling it as an external <script> element and continue collecting to the same collection.
+        # Minify_AutoJs::process_script_tag(). This is not ideal as this may result in multiple <script> elements.
+        # Instead we will collect the inline <script> element by copying its content to a local file on the server and
+        # then handling it as an external <script> element and continue collecting to the same collection.
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_local_script_minification'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_local_script_minification', function( $data ) use ( $monitor ) {
@@ -1350,6 +1352,11 @@ EOD
                 return $data;
             } );
         }
+        # W3TC will flush the collected <script> elements when it encounters an inline <script> element. This is not
+        # ideal as it may result in multiple <script> elements. We have collected inline <script> elements by copying
+        # their contents to a local file on the server and handling it as another external JavaScript file. Hence, we
+        # must prevent W3TC from flushing the collected <script> elements when it encounters an inline <script> element.
+        # The filter 'w3tc_minify_js_do_flush_collected' is used to do this by returning FALSE.
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) ) {
             add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js )
