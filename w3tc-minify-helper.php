@@ -26,6 +26,50 @@
 /*
  * This plugin contains excerpts fron the plugin "W3 Total Cache" by BoldGrid.
  * See https://wordpress.org/plugins/w3-total-cache/.
+ */
+
+/*
+ * This program runs either in VERSION 2 mode or VERSION 1 mode. You should use VERSION 2 as VERSION 1 will not
+ * work under certain conditions which may be easily true on modern advanced websites. VERSION 1 is maintained
+ * to support backward compatility and should not be used for a new application.
+ */
+
+/*
+ * VERSION 2 (for use with W3TC's auto minification mode for JavaScript files)
+ *
+ * Version 2 of this plugin implements a monitor of W3TC's "minify auto js" processing. This monitor can provide
+ * details on how the "auto mode" JavaScript minifier of W3TC works and optionally replace W3TC's minifier with
+ * this plugin's minifier. This should reduce the number of minified files emitted.
+ *
+ * The following WP-CLI commands will enable/disable monitoring of W3TC's "minify auto js" filters:
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_script_tags", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_tag_minification", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_excluded_tag_script_minification", TRUE );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_file_handler_minify_options", TRUE );'
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::clear_monitor_minify_autojs_options( );'
+ *
+ * To show the state of the monitor run the following WP-CLI command:
+ *
+ *     php wp-cli.phar eval 'print_r( get_option( MC_Alt_W3TC_Minify::OPTION_MONITOR_MINIFY_AUTOJS ) );'
+ *
+ * To replace W3TC's "auto mode" JavaScript minifier with the monitor's minifier run the following WP-CLI command:
+ *
+ *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( MC_Alt_W3TC_Minify::AUTO_MINIFY_OPTION, TRUE );'
+ *
+ * To reset the monitor, i.e., turn everything off run the following MySQL command:
+ *
+ *     delete from wp_options where option_name = 'mc_alt_w3tc_minify_monitor_minify_autojs';
  *
  * VERSION 1 (for use with W3TC's manual minification mode for JavaScript files)
  *
@@ -113,42 +157,6 @@
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_theme_map");'
  *     php wp-cli.phar eval 'delete_option("mc_alt_w3tc_minify_miscellaneous");'
  *     php wp-cli.phar eval 'unlink( MC_Alt_W3TC_Minify::OUTPUT_DIR . "/" . MC_Alt_W3TC_Minify::CONF_FILE_NAME );'
- *
- * VERSION 2 (for use with W3TC's auto minification mode for JavaScript files)
- *
- * Version 2 of this plugin implements a monitor of W3TC's "minify auto js" processing. This monitor can provide
- * details on how the "auto mode" JavaScript minifier of W3TC works and optionally replace W3TC's minifier with
- * this plugin's minifier. This should reduce the number of minified files emitted.
- *
- * The following WP-CLI commands will enable/disable monitoring of W3TC's "minify auto js" filters:
- *
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_processed_content", TRUE );'
- *
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_script_tags", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_local_script_minification", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_tag_minification", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_flush_collected", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_step_script_to_embed", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_js_do_excluded_tag_script_minification", TRUE );'
- *
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_urls_for_minification_to_minify_filename", TRUE );'
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_minify_file_handler_minify_options", TRUE );'
- *
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::clear_monitor_minify_autojs_options( );'
- *
- * To show the state of the monitor run the following WP-CLI command:
- *
- *     php wp-cli.phar eval 'print_r( get_option( MC_Alt_W3TC_Minify::OPTION_MONITOR_MINIFY_AUTOJS ) );'
- * 
- * To replace W3TC's "auto mode" JavaScript minifier with the monitor's minifier run the following WP-CLI command:
- * 
- *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( MC_Alt_W3TC_Minify::AUTO_MINIFY_OPTION, TRUE );'
- *
- * To reset the monitor, i.e., turn everything off run the following MySQL command:
- *
- *     delete from wp_options where option_name = 'mc_alt_w3tc_minify_monitor_minify_autojs';
  *
  */
 
