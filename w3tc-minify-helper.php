@@ -29,9 +29,11 @@
  */
 
 /*
- * This program runs either in VERSION 2 mode or VERSION 1 mode. You should use VERSION 2 as VERSION 1 will not
- * work under certain conditions which may be easily true on modern advanced websites. VERSION 1 is maintained
- * to support backward compatility and should not be used for a new application.
+ * This program runs either in version 2 mode or version 1 mode. You should use version 2 as version 1 will not
+ * work under certain conditions which may be easily true on modern advanced websites. Version 1 is maintained
+ * to support backward compatility and should not be used for a new application. To enable version 2 just click
+ * on the "Auto Minify:Xxx" link in this plugin's entry in the "Installed Plugins" admin page. This link toggles
+ * "Off" and "On" this plugin's minifier for W3TC'S auto minification mode.
  */
 
 /*
@@ -70,7 +72,9 @@
  * To reset the monitor, i.e., turn everything off run the following MySQL command:
  *
  *     delete from wp_options where option_name = 'mc_alt_w3tc_minify_monitor_minify_autojs';
- *
+ */
+
+/*
  * VERSION 1 (for use with W3TC's manual minification mode for JavaScript files)
  *
  * The following is a description of version 1 of this plugin. Although still
@@ -78,9 +82,7 @@
  * as I think the design of W3TC “manual minify” mode prevents W3TC JavaScript
  * minification in “manual minify” mode from being successful except under some
  * quite restrictive conditions which will not be true for some modern WordPress
- * web pages. To enable version 2 just click on the "Auto Minify:Xxx" link in this
- * plugin's entry in the "Installed Plugins" admin page. This link toggles "Off"
- * and "On" this plugin's minifier for W3TC'S auto minification mode.
+ * web pages.
  *
  * The W3 Total Cache auto minify mode does not work on my web site. The problem
  * is the order of the JavaScript files using the auto minify mode is different
