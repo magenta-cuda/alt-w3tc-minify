@@ -162,9 +162,8 @@
  *
  */
 
-if ( TRUE ) {   # development
 #                                              1234567812345678
-# if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
+if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
     #                                                                   1234567812345678
     define( 'MC_AWM_191208_DEBUG_OFF',                                0x0000000000000000 );
     define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                 0x0000000000000001 );   # This enables WP-CLI unit testing
