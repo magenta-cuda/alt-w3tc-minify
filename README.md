@@ -71,6 +71,14 @@ Minify_Plugin::get_template() in the file "Minify_Plugin.php" which just
 duplicates the code in WordPress's wp-includes/template-loader.php except
 it doesn't include the filter.
 
+In May 2020 I again checked the code of Minify_Plugin::get_template() for version 0.13.3
+of W3TC against the code of template-loader.php for version 5.4.1 of WordPress.
+Minify_Plugin::get_template() is now badly outdated. The correct implementation of
+Minify_Plugin::get_template() is dependent on it being a faithful duplicate of the
+code in WordPress's wp-includes/template-loader.php. This requires W3TC to manual
+update it everytime WordPress's wp-includes/template-loader.php is updated and this
+is not being done.
+
 # My Analysis of W3TC 0.9.7.5 JavaScript Minification
 
 ## manual mode
