@@ -81,8 +81,10 @@
  * supported for backward compatibility I strongly recommend enabling version 2,
  * as I think the design of W3TC “manual minify” mode prevents W3TC JavaScript
  * minification in “manual minify” mode from being successful except under some
- * quite restrictive conditions which will not be true for some modern WordPress
- * web pages.
+ * quite restrictive conditions which will not be true for many modern WordPress
+ * web pages. These restrictions are described in "The original README" of
+ * "https://github.com/magenta-cuda/alt-w3tc-minify/blob/master/README.md".
+ *
  *
  * The W3 Total Cache auto minify mode does not work on my web site. The problem
  * is the order of the JavaScript files using the auto minify mode is different
@@ -163,7 +165,7 @@
  */
 
 #                                              1234567812345678
-if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {   # production
+if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {
     #                                                                   1234567812345678
     define( 'MC_AWM_191208_DEBUG_OFF',                                0x0000000000000000 );
     define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                 0x0000000000000001 );   # This enables WP-CLI unit testing
