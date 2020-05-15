@@ -66,14 +66,16 @@ There is a significant restriction when using manual minify mode. W3TC in
 manual minify mode cannot handle templates loaded using the 'template_include'
 filter. I have a [topic](https://wordpress.org/support/topic/problem-in-manual-minify-mode-when-a-plugin-uses-the-filter-template_include/) in the WordPress support forum on this problem.
 I find the response very confusing. This problem really does exists and can be
-verified by reading W3TC's source code. See the function
-Minify_Plugin::get_template() in the file "Minify_Plugin.php" which just
-duplicates the code in WordPress's wp-includes/template-loader.php except
-it doesn't include the filter.
+verified by reading W3TC's source code. W3TC needs to know the template that
+WordPress will use. The W3TC function Minify_Plugin::get_template() in the file
+"Minify_Plugin.php" is used to do this and is implemented by duplicating
+the code in WordPress's wp-includes/template-loader.php. Unfortunately it doesn't
+apply the filter 'template_include' causing it to return the wrong theme if this
+filter overrides the theme selected by the code in wp-includes/template-loader.php.
 
 In May 2020 I again checked the code of Minify_Plugin::get_template() for version 0.13.3
 of W3TC against the code of template-loader.php for version 5.4.1 of WordPress.
-Minify_Plugin::get_template() is now badly outdated. The correct implementation of
+Minify_Plugin::get_template() is now even more out of sync. The correct implementation of
 Minify_Plugin::get_template() is dependent on it being a faithful duplicate of the
 code in WordPress's wp-includes/template-loader.php. This requires W3TC to manual
 update it everytime WordPress's wp-includes/template-loader.php is updated and this
