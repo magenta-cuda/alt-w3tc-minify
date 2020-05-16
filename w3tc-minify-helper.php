@@ -807,6 +807,20 @@ EOD
             self::reset();
         } );
     }   # public static function admin_init() {
+    public static function on_activate() {
+        register_activation_hook(__FILE__, function() {
+            if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] ) ) ) {
+                # Version 2 is not enabled.
+                if ( self::get_the_data() ) {
+                    # Version 1 data already exists so run version 1.
+                    return;
+                }
+                # No version 1 data exists, so either this is new installation or version 1 settings have been cleared.
+                # In this case default to running version 2.
+                update_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ self::AUTO_MINIFY_OPTION => TRUE ] );
+            }
+        } );
+    }   # public static function on_activate() {
     # reset() will remove everything created by this plugin.
     private static function reset() {
         delete_transient( self::TRANSIENT_NAME );
@@ -2290,6 +2304,8 @@ class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
 }   # class MC_Alt_W3TC_Minify_Unit_Tester extends MC_Alt_W3TC_Minify {
 
 }   # if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER ) {
+
+MC_Alt_W3TC_Minify::on_activate();
 
 # Abort execution if the W3 Total Cache plugin is not activated.
 if ( defined( 'WP_ADMIN' ) ) {
