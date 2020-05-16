@@ -634,7 +634,7 @@ EOD
         # and will require special handling as a page needs to be returned.
         add_action( 'wp_ajax_' . self::AJAX_RESET, function() {
             check_ajax_referer( self::AJAX_RESET );
-            self::reset();
+            self::reset( TRUE );
             self::add_notice( self::PLUGIN_NAME .': The database has been cleared.' );
             # Since this AJAX request was not invoked as XHR but as a normal HTTP request
             # we need to redirect to return a page otherwise the browser will not have content.
@@ -804,7 +804,7 @@ EOD
         }
         # On deactivation remove everything created by this plugin. 
         register_deactivation_hook( __FILE__, function() {
-            self::reset();
+            self::reset( TRUE );
         } );
     }   # public static function admin_init() {
     public static function on_activate() {
@@ -822,13 +822,16 @@ EOD
         } );
     }   # public static function on_activate() {
     # reset() will remove everything created by this plugin.
-    private static function reset() {
+    private static function reset( $include_version_2_data = FALSE ) {
         delete_transient( self::TRANSIENT_NAME );
         delete_option( self::OPTION_NAME );
         delete_option( self::OPTION_LOG_NAME );
         delete_option( self::OPTION_SKIPPED_NAME );
         delete_option( self::OPTION_THEME_MAP );
         delete_option( self::OPTION_MISCELLANEOUS );
+        if ( $include_version_2_data ) {
+            delete_option( self::OPTION_MONITOR_MINIFY_AUTOJS );
+        }
         @unlink( self::OUTPUT_DIR . '/' . self::CONF_FILE_NAME );
     }
     private static function get_the_data() {
