@@ -1502,9 +1502,8 @@ EOD
                     # The embed position may be wrong if there are inline script elements as W3TC does not process these as files
                     # to be minified and does not update the embed position accordingly.
                     // TODO: Calculate embed position considering the replaced in line scripts 
-                    // $data['embed_pos']       = ?;
-                    // error_log( 'FILTER::w3tc_minify_js_step_script_to_embed():' );
-                    // self::print_r( $data, '$data' );
+                    // $data['embed_pos'] = ?;
+                    # Alternatively, $data['embed_pos'] can be fixed in the filter 'w3tc_minify_js_step' - currently this is the solution.
                 }
                 return $data;
             } );
