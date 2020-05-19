@@ -200,14 +200,14 @@ if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_e
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
     const W3TC_FILE                    = 'w3-total-cache/w3-total-cache.php';
-    const W3TC_VERSION                 = '0.9.7.5';
+    const W3TC_VERSION                 = '0.13.3';                                     # tested against this version of W3TC
     const OPTION_NAME                  = 'mc_alt_w3tc_minify';
     const OPTION_LOG_NAME              = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME          = 'mc_alt_w3tc_minify_skipped';
     const OPTION_THEME_MAP             = 'mc_alt_w3tc_minify_theme_map';
     const OPTION_USE_INCLUDE           = 'mc_alt_w3tc_minify_use_include';
     const OPTION_MISCELLANEOUS         = 'mc_alt_w3tc_minify_miscellaneous';
-    const OPTION_MONITOR_MINIFY_AUTOJS = 'mc_alt_w3tc_minify_monitor_minify_autojs';
+    const OPTION_MONITOR_MINIFY_AUTOJS = 'mc_alt_w3tc_minify_monitor_minify_autojs';   # this array holds all Version 2 options
     const OPTION_DEBUG                 = 'mc_alt_w3tc_minify_debug';
     const TRANSIENT_NAME               = 'mc_alt_w3tc_minify';
     const OUTPUT_DIR                   = WP_CONTENT_DIR . '/mc-w3tcm-output';
@@ -216,8 +216,8 @@ class MC_Alt_W3TC_Minify {
     const NOTICE_ID                    = 'mc_alt_w3tc_minify_notice_id';
     const TEMPLATE_WARNINGS            = 'TEMPLATE-WARNINGS';
     const DO_NOT_MINIFY                = 'DO-NOT-MINIFY';
-    const OVERRIDE_DO_NOT_MINIFY       = 'mc_ignore_do_not_minify_flag';           # query parameter to ignore 'do not minify' flag
-    const AUTO_MINIFY_OPTION           = 'ENABLED::mc_w3tcm_auto_minify';
+    const OVERRIDE_DO_NOT_MINIFY       = 'mc_ignore_do_not_minify_flag';               # query parameter to ignore 'do not minify' flag
+    const AUTO_MINIFY_OPTION           = 'ENABLED::mc_w3tcm_auto_minify';              # enable Version 2 minification
     const AJAX_TOGGLE_AUTO_MINIFY      = 'mc_alt_w3tc_toggle_auto_minify';
     const AJAX_RESET                   = 'mc_alt_w3tc_minify_reset';
     const AJAX_SET_TEMPLATE_SKIP       = 'mc_alt_w3tc_minify_set_template_skip';
@@ -278,6 +278,7 @@ class MC_Alt_W3TC_Minify {
     private static $minify_filename           = NULL;
     # For inline scripts save the tag position and whether the script was conditional or not.
     private static $inline_script_tag_pos     = NULL;
+    private static $end_head_tag_pos          = NULL;   # not NULL only when process_script_tag() is processing the </head> tag
     private static $inline_script_conditional = NULL;
     private static $inline_script_embed_pos   = NULL;
     private static $w3tc_minify_helpers       = NULL;
@@ -1260,6 +1261,7 @@ EOD
                     } else {
                         # This is a </head>. Update the $files_to_minify shadow with NULL to keep synchronization.
                         self::$files_to_minify[ $script_tag_number + array_sum( self::$files_to_minify_extras ) ] = NULL;
+                        self::$end_head_tag_pos = $data['script_tag_pos'];
                     }
                 }
                 return $data;
@@ -1478,7 +1480,14 @@ EOD
                         self::$files_to_minify   = array_map( function( $v ) { return NULL; }, self::$files_to_minify );
                         break;
                     }
-                   self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
+                    self::$last_script_tag_is = self::UNKNOWN_SCRIPT_TAG;
+                    if (self::$end_head_tag_pos !== NULL ) {
+                        # flush_collected() is being called from process_script_tag() when it is processing the </head> tag.
+                        # The head scripts needs to be emitted just before the </head> tag so trailing scripts bracketed by
+                        # HTML comments are handled correctly.
+                        $data['embed_pos']      = self::$end_head_tag_pos;
+                        self::$end_head_tag_pos = NULL;
+                    }
                 }
                 return $data;
             } );
