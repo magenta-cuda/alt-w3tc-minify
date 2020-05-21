@@ -804,8 +804,15 @@ td.err {
     if ( ! empty( $_REQUEST['file'] ) ) {
         self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map[ $_REQUEST['file'] ] );
     } else {
-        error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
         foreach( $minify_map as $key => $value ) {
+            if ( ! is_array( $value ) ) {
+                // TODO: $minify_map has corrupt entries that are objects not arrays, why?
+                error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map has bad value for key=' . $key );
+                if ( empty( $dumped ) ) {
+                    error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
+                    $dumped = TRUE;
+                }
+            }
             self::pretty_print_minify_map_entry( $key, $value );
         }
     }
@@ -2251,6 +2258,7 @@ td.err {
         }
     }   # public static function print_r( $var, $name = '' ) {
     private static function pretty_print_minify_map_entry( $key, $value ) {
+        # Sometimes $value is an object no an array. But the object has numeric keys that correspond to a continuation of the previous array!
         if ( ! is_array( $value ) ) {
             echo '<tr><td>' . $key . '</td><td></td><td class="err">Error: Value is not an array.</td></tr>';
             return;
