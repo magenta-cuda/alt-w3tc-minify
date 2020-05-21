@@ -771,7 +771,7 @@ EOD
         add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_MAP, function() {
 ?>
 <html>
-<body><pre>
+<body>
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
@@ -782,7 +782,7 @@ EOD
         }
     }
 ?>
-</pre></body>
+</body>
 </html>
 <?php
             exit();
@@ -2223,16 +2223,24 @@ EOD
         }
     }   # public static function print_r( $var, $name = '' ) {
     private static function pretty_print_minify_map_entry( $key, $value ) {
-        echo $key . " => {\n";
+        echo $key . ' => {<br>' . "\n";
         foreach( $value as $index => $file ) {
-            if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
-                $url = includes_url( substr( $file, 11 ) );
-            } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
-                $url = content_url( substr( $file, 10 ) );
+            if ( file_exists( ABSPATH . $file ) ) {
+                if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
+                    $url = includes_url( substr( $file, 11 ) );
+                } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
+                    $url = content_url( substr( $file, 10 ) );
+                }
+            } else {
+                $url = '';
             }
-            echo '    [' .$index . '] => ' . $file . ' -> ' . 'view-source:' . $url . "\n";
+            if ( $url ) {
+                echo '&nbsp;&nbsp;&nbsp;&nbsp;[' .$index . '] => <a href="' . $url . '" target="_blank">' . $file . '</a><br>' . "\n";
+            } else {
+                echo '&nbsp;&nbsp;&nbsp;&nbsp;[' .$index . '] => ' . $file . '<br>' . "\n";
+            }
         }
-        echo "}\n\n";
+        echo '}<br>' . "\n";
     }
 }   # MC_Alt_W3TC_Minify
 
