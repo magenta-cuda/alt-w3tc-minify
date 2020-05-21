@@ -773,10 +773,13 @@ EOD
 <html>
 <body><pre>
 <?php
+    $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
-        print_r( json_decode( get_option( 'w3tc_minify', [] ), TRUE )[ $_REQUEST['file'] ] );
+        self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map[ $_REQUEST['file'] ] );
     } else {
-        print_r( json_decode( get_option( 'w3tc_minify', [] ), TRUE ) );
+        foreach( $minify_map as $key => $value ) {
+            self::pretty_print_minify_map_entry( $key, $value );
+        }
     }
 ?>
 </pre></body>
@@ -2218,6 +2221,18 @@ EOD
         if ( --$depth === 0 ) {
             $done_objects = [];
         }
+    }   # public static function print_r( $var, $name = '' ) {
+    private static function pretty_print_minify_map_entry( $key, $value ) {
+        echo $key . " => {\n";
+        foreach( $value as $index => $file ) {
+            if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
+                $url = includes_url( substr( $file, 11 ) );
+            } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
+                $url = content_url( substr( $file, 10 ) );
+            }
+            echo '    [' .$index . '] => ' . $file . ' -> ' . 'view-source:' . $url . "\n";
+        }
+        echo "}\n\n";
     }
 }   # MC_Alt_W3TC_Minify
 
