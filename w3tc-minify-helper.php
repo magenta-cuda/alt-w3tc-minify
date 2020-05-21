@@ -227,6 +227,7 @@ class MC_Alt_W3TC_Minify {
     const AJAX_GET_THE_DIFF            = 'mc_alt_w3tc_minify_get_the_diff';
     const AJAX_GET_DATABASE            = 'mc_alt_w3tc_minify_get_database';
     const AJAX_GET_MINIFY_MAP          = 'mc_alt_w3tc_minify_get_w3tc_minify_map';
+    const AJAX_GET_MINIFY_CACHE_LIST   = 'mc_alt_w3tc_minify_get_w3tc_minify_cache_list';
     const UNKNOWN_SCRIPT_TAG           = 'unknown';
     const INLINE_SCRIPT                = 'inline';
     const SKIPPED_SCRIPT               = 'skipped';
@@ -821,7 +822,40 @@ td.err {
 </html>
 <?php
             exit();
-        } );
+        } );   # add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_MAP, function() {
+        add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_CACHE_LIST, function() {
+?>
+<html>
+<head><style>
+table {
+    width: 100%;
+    table-layout: fixed;
+    border: 4px solid black;
+    border-collapse: collapse;
+}
+tr {
+    width: 100%;
+}
+td {
+    padding: 5px 15px;
+    border: 2px solid black;
+}
+</style></head>
+<body><table>
+<?php
+            // TODO: '/cache/minify' should not be hard coded
+            $files = scandir( WP_CONTENT_DIR . '/cache/minify');
+            foreach ( $files as $file ) {
+                if ( preg_match( '#^\w+\.(js|css)$#', $file ) ) {
+                    echo '<tr><td>' . $file . '</td></tr>';
+                }
+            }
+?>
+</table></body>
+</html>
+<?php
+            exit();
+        } );   # add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_CACHE_LIST, function() {
         # Make no_priv versions of above AJAX actions.
         foreach ( [ self::AJAX_GET_THEME_MAP, self::AJAX_GET_LOG, self::AJAX_GET_THE_DIFF, self::AJAX_GET_DATABASE,
             self::AJAX_GET_MINIFY_MAP ] as $ajax_action ) {
