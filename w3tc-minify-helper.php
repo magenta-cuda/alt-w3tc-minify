@@ -771,7 +771,31 @@ EOD
         add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_MAP, function() {
 ?>
 <html>
-<body>
+<head><style>
+table {
+    width: 100%;
+    table-layout: fixed;
+    border: 4px solid black;
+    border-collapse: collapse;
+}
+tr {
+    width: 100%;
+}
+td {
+    padding: 5px 15px;
+    border: 2px solid black;
+}
+td.w5 {
+    width: 5%;
+}
+td.w10 {
+    width: 10%;
+}
+td.w85 {
+    width: 85%;
+}
+</style></head>
+<body><table>
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
@@ -782,7 +806,7 @@ EOD
         }
     }
 ?>
-</body>
+</table></body>
 </html>
 <?php
             exit();
@@ -2223,24 +2247,27 @@ EOD
         }
     }   # public static function print_r( $var, $name = '' ) {
     private static function pretty_print_minify_map_entry( $key, $value ) {
-        echo $key . ' => {<br>' . "\n";
         foreach( $value as $index => $file ) {
+            echo '<tr>';
+            if ( $index === 0 ) {
+                echo '<td class="w10" rowspan="' . count( $value ) . '">' . $key . '</td>';
+            }
+            $url = '';
             if ( file_exists( ABSPATH . $file ) ) {
                 if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
                     $url = includes_url( substr( $file, 11 ) );
                 } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
                     $url = content_url( substr( $file, 10 ) );
                 }
-            } else {
-                $url = '';
             }
+            echo '<td class="w5">' . $index . '</td><td class="w85">';
             if ( $url ) {
-                echo '&nbsp;&nbsp;&nbsp;&nbsp;[' .$index . '] => <a href="' . $url . '" target="_blank">' . $file . '</a><br>' . "\n";
+                echo '<a href="' . $url . '" target="_blank">' . $file . '</a>';
             } else {
-                echo '&nbsp;&nbsp;&nbsp;&nbsp;[' .$index . '] => ' . $file . '<br>' . "\n";
+                echo $file;
             }
+            echo '</td></tr>' . "\n";
         }
-        echo '}<br>' . "\n";
     }
 }   # MC_Alt_W3TC_Minify
 
