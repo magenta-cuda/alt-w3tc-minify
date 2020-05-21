@@ -2266,7 +2266,10 @@ td.err {
         foreach( $value as $index => $file ) {
             echo '<tr>';
             if ( $index === 0 ) {
-                echo '<td class="w10" rowspan="' . count( $value ) . '">' . $key . '</td>';
+                // echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
+                // TODO : above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
+                // For now just hard code the path
+                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . content_url( 'cache/minify/' . $key ) . '">' . $key . '</a></td>';
             }
             $url = '';
             if ( file_exists( ABSPATH . $file ) ) {
