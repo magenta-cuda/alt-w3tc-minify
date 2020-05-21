@@ -794,6 +794,9 @@ td.w10 {
 td.w85 {
     width: 85%;
 }
+td.err {
+    color: red;
+}
 </style></head>
 <body><table>
 <?php
@@ -801,6 +804,7 @@ td.w85 {
     if ( ! empty( $_REQUEST['file'] ) ) {
         self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map[ $_REQUEST['file'] ] );
     } else {
+        error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
         foreach( $minify_map as $key => $value ) {
             self::pretty_print_minify_map_entry( $key, $value );
         }
@@ -2247,6 +2251,10 @@ td.w85 {
         }
     }   # public static function print_r( $var, $name = '' ) {
     private static function pretty_print_minify_map_entry( $key, $value ) {
+        if ( ! is_array( $value ) ) {
+            echo '<tr><td>' . $key . '</td><td></td><td class="err">Error: Value is not an array.</td></tr>';
+            return;
+        }
         foreach( $value as $index => $file ) {
             echo '<tr>';
             if ( $index === 0 ) {
