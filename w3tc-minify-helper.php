@@ -799,7 +799,11 @@ td.err {
     color: red;
 }
 </style></head>
-<body><table>
+<body>
+    <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
+        Show minify cache directory
+    </a>
+    <table>
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
@@ -818,7 +822,8 @@ td.err {
         }
     }
 ?>
-</table></body>
+    </table>
+</body>
 </html>
 <?php
             exit();
@@ -841,17 +846,30 @@ td {
     border: 2px solid black;
 }
 </style></head>
-<body><table>
+<body>
 <?php
-            // TODO: '/cache/minify' should not be hard coded
+            // TODO: '/cache/minify' should not be hard coded - see pretty_print_minify_map_entry() for related TODO.
             $files = scandir( WP_CONTENT_DIR . '/cache/minify');
-            foreach ( $files as $file ) {
-                if ( preg_match( '#^\w+\.(js|css)$#', $file ) ) {
+            $files = array_filter( $files, function( $v ) {
+                  return preg_match( '#^\w+\.(js|css)$#', $v );
+            } );
+            if ( $files ) {
+?>
+    <table>
+<?php
+                foreach ( $files as $file ) {
                     echo '<tr><td>' . $file . '</td></tr>';
                 }
+?>
+    </table>
+<?php
+            } else {
+?>
+    There are no JavaScript or CSS files in the minify cache directory.
+<?php
             }
 ?>
-</table></body>
+</body>
 </html>
 <?php
             exit();
@@ -2301,8 +2319,10 @@ td {
             echo '<tr>';
             if ( $index === 0 ) {
                 // echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
-                // TODO : above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
-                // For now just hard code the path
+                // TODO: above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
+                // TODD: Minify_Core should have been loaded by Minify_Loader::loadClass() which should be registered by spl_autoload_register().
+                // TODO: Why is this not working?
+                // TODO: For now just hard code the path
                 echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . content_url( 'cache/minify/' . $key ) . '">' . $key . '</a></td>';
             }
             $url = '';
