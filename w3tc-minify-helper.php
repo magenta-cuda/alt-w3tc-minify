@@ -812,7 +812,10 @@ EOD
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
-        $minify_map = (object) [ $_REQUEST['file'] => $minify_map->{$_REQUEST['file']} ];
+        $minify_map = [ $_REQUEST['file'] => $minify_map->{$_REQUEST['file']} ];
+    } else {
+        $minify_map = (array) $minify_map;
+        ksort( $minify_map, SORT_STRING );
     }
     foreach( $minify_map as $key => $value ) {
         if ( ! is_array( $value ) ) {
