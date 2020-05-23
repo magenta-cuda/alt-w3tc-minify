@@ -812,19 +812,18 @@ EOD
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
-        self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map->{$_REQUEST['file']} );
-    } else {
-        foreach( $minify_map as $key => $value ) {
-            if ( ! is_array( $value ) ) {
-                // TODO: $minify_map has corrupt entries that are objects not arrays, why?
-                error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map has bad value for key=' . $key );
-                if ( empty( $dumped ) ) {
-                    error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
-                    $dumped = TRUE;
-                }
+        $minify_map = (object) [ $_REQUEST['file'] => $minify_map->{$_REQUEST['file']} ];
+    }
+    foreach( $minify_map as $key => $value ) {
+        if ( ! is_array( $value ) ) {
+            // TODO: $minify_map has corrupt entries that are objects not arrays, why?
+            error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map has bad value for key=' . $key );
+            if ( empty( $dumped ) ) {
+                error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
+                $dumped = TRUE;
             }
-            self::pretty_print_minify_map_entry( $key, $value );
         }
+        self::pretty_print_minify_map_entry( $key, $value );
     }
 ?>
     </table>
