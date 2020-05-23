@@ -820,13 +820,41 @@ EOD
     foreach( $minify_map as $key => $value ) {
         if ( ! is_array( $value ) ) {
             // TODO: $minify_map has corrupt entries that are objects not arrays, why?
+            // TODO: But the object has numeric keys that correspond to a continuation of the previous array!
             error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map has bad value for key=' . $key );
             if ( empty( $dumped ) ) {
                 error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
                 $dumped = TRUE;
             }
+            echo '<tr><td>' . $key . '</td><td></td><td class="err">Error: Value is not an array.</td></tr>';
+            continue;
         }
-        self::pretty_print_minify_map_entry( $key, $value );
+        foreach( $value as $index => $file ) {
+            echo '<tr>';
+            if ( $index === 0 ) {
+                // echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
+                // TODO: above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
+                // TODO: Minify_Core should have been loaded by Minify_Loader::loadClass() which should be registered by spl_autoload_register().
+                // TODO: Why is this not working?
+                // TODO: For now just hard code the path
+                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . content_url( 'cache/minify/' . $key ) . '">' . $key . '</a></td>';
+            }
+            $url = '';
+            if ( file_exists( ABSPATH . $file ) ) {
+                if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
+                    $url = includes_url( substr( $file, 11 ) );
+                } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
+                    $url = content_url( substr( $file, 10 ) );
+                }
+            }
+            echo '<td class="w5">' . $index . '</td><td class="w85">';
+            if ( $url ) {
+                echo '<a href="' . $url . '" target="_blank">' . $file . '</a>';
+            } else {
+                echo $file;
+            }
+            echo '</td></tr>' . "\n";
+        }
     }
 ?>
     </table>
@@ -2304,39 +2332,7 @@ EOD
             $done_objects = [];
         }
     }   # public static function print_r( $var, $name = '' ) {
-    private static function pretty_print_minify_map_entry( $key, $value ) {
-        # Sometimes $value is an object no an array. But the object has numeric keys that correspond to a continuation of the previous array!
-        if ( ! is_array( $value ) ) {
-            echo '<tr><td>' . $key . '</td><td></td><td class="err">Error: Value is not an array.</td></tr>';
-            return;
-        }
-        foreach( $value as $index => $file ) {
-            echo '<tr>';
-            if ( $index === 0 ) {
-                // echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
-                // TODO: above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
-                // TODD: Minify_Core should have been loaded by Minify_Loader::loadClass() which should be registered by spl_autoload_register().
-                // TODO: Why is this not working?
-                // TODO: For now just hard code the path
-                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . content_url( 'cache/minify/' . $key ) . '">' . $key . '</a></td>';
-            }
-            $url = '';
-            if ( file_exists( ABSPATH . $file ) ) {
-                if ( substr_compare( $file, 'wp-includes', 0, 11 ) === 0 ) {
-                    $url = includes_url( substr( $file, 11 ) );
-                } else if ( substr_compare( $file, 'wp-content', 0, 10 ) === 0 ) {
-                    $url = content_url( substr( $file, 10 ) );
-                }
-            }
-            echo '<td class="w5">' . $index . '</td><td class="w85">';
-            if ( $url ) {
-                echo '<a href="' . $url . '" target="_blank">' . $file . '</a>';
-            } else {
-                echo $file;
-            }
-            echo '</td></tr>' . "\n";
-        }
-    }
+
 }   # MC_Alt_W3TC_Minify
 
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
