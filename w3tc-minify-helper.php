@@ -233,6 +233,35 @@ class MC_Alt_W3TC_Minify {
     const SKIPPED_SCRIPT               = 'skipped';
     const HEAD_END                     = 'head end';
     const AFTER_LAST_SCRIPT            = 'after last';
+    const TABLE_STYLE                  = <<<EOD
+<style>
+    table {
+        width: 100%;
+        table-layout: fixed;
+        border: 4px solid black;
+        border-collapse: collapse;
+    }
+    tr {
+        width: 100%;
+    }
+    td {
+        padding: 5px 15px;
+        border: 2px solid black;
+    }
+    td.w5 {
+        width: 5%;
+    }
+    td.w10 {
+        width: 10%;
+    }
+    td.w85 {
+        width: 85%;
+    }
+    td.err {
+        color: red;
+    }
+</style>
+EOD;
 
     private static $debug              = NULL;
     private static $theme              = NULL;   # MD5 of the current theme
@@ -772,33 +801,9 @@ EOD
         add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_MAP, function() {
 ?>
 <html>
-<head><style>
-table {
-    width: 100%;
-    table-layout: fixed;
-    border: 4px solid black;
-    border-collapse: collapse;
-}
-tr {
-    width: 100%;
-}
-td {
-    padding: 5px 15px;
-    border: 2px solid black;
-}
-td.w5 {
-    width: 5%;
-}
-td.w10 {
-    width: 10%;
-}
-td.w85 {
-    width: 85%;
-}
-td.err {
-    color: red;
-}
-</style></head>
+<head>
+    <?php echo self::TABLE_STYLE; ?>
+</head>
 <body>
     <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
         Show minify cache directory
@@ -831,21 +836,9 @@ td.err {
         add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_CACHE_LIST, function() {
 ?>
 <html>
-<head><style>
-table {
-    width: 100%;
-    table-layout: fixed;
-    border: 4px solid black;
-    border-collapse: collapse;
-}
-tr {
-    width: 100%;
-}
-td {
-    padding: 5px 15px;
-    border: 2px solid black;
-}
-</style></head>
+<head>
+    <?php echo self::TABLE_STYLE; ?>
+</head>
 <body>
 <?php
             // TODO: '/cache/minify' should not be hard coded - see pretty_print_minify_map_entry() for related TODO.
