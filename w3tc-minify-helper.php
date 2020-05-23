@@ -812,7 +812,7 @@ EOD
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
-        self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map[ $_REQUEST['file'] ] );
+        self::pretty_print_minify_map_entry( $_REQUEST['file'], $minify_map->{$_REQUEST['file']} );
     } else {
         foreach( $minify_map as $key => $value ) {
             if ( ! is_array( $value ) ) {
