@@ -254,8 +254,26 @@ class MC_Alt_W3TC_Minify {
     td.w10 {
         width: 10%;
     }
+    td.w20 {
+        width: 20%;
+    }
+    td.w30 {
+        width: 30%;
+    }
+    td.w50 {
+        width: 50%;
+    }
+    td.w65 {
+        width: 65%;
+    }
+    td.w70 {
+        width: 70%;
+    }
     td.w85 {
         width: 85%;
+    }
+    td.w90 {
+        width: 90%;
     }
     td.err {
         color: red;
@@ -872,7 +890,8 @@ EOD
 <body>
 <?php
             // TODO: '/cache/minify' should not be hard coded - see pretty_print_minify_map_entry() for related TODO.
-            $files = scandir( WP_CONTENT_DIR . '/cache/minify');
+            $dir   = WP_CONTENT_DIR . '/cache/minify';
+            $files = scandir( $dir );
             $files = array_filter( $files, function( $v ) {
                   return preg_match( '#^\w+\.(js|css)$#', $v );
             } );
@@ -881,7 +900,12 @@ EOD
     <table>
 <?php
                 foreach ( $files as $file ) {
-                    echo '<tr><td>' . $file . '</td></tr>';
+                    $file_path = $dir . '/' . $file;
+                    $time = date( DATE_RFC850, filemtime( $file_path ) );
+                    $size = (string) filesize( $file_path );
+                    echo '<tr><td class="w20">' . $file . '</td>';
+                    echo     '<td class="w50">' . $time . '</td>';
+                    echo     '<td class="w30">' . $size . '</td></tr>';
                 }
 ?>
     </table>
