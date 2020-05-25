@@ -899,7 +899,7 @@ EOD
         } );   # add_action( 'wp_ajax_' . self::AJAX_GET_MINIFY_CACHE_LIST, function() {
         # Make no_priv versions of above AJAX actions.
         foreach ( [ self::AJAX_GET_THEME_MAP, self::AJAX_GET_LOG, self::AJAX_GET_THE_DIFF, self::AJAX_GET_DATABASE,
-            self::AJAX_GET_MINIFY_MAP ] as $ajax_action ) {
+            self::AJAX_GET_MINIFY_MAP, self::AJAX_GET_MINIFY_CACHE_LIST ] as $ajax_action ) {
             add_action( 'wp_ajax_nopriv_' . $ajax_action, function() use ( $ajax_action ) {
                 do_action( "wp_ajax_{$ajax_action}" );
             } );
@@ -2332,7 +2332,6 @@ EOD
             $done_objects = [];
         }
     }   # public static function print_r( $var, $name = '' ) {
-
 }   # MC_Alt_W3TC_Minify
 
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
