@@ -244,35 +244,35 @@ class MC_Alt_W3TC_Minify {
     tr {
         width: 100%;
     }
-    td {
+    td, th {
         padding: 5px 15px;
         border: 2px solid black;
     }
-    td.w5 {
+    td.w5, th.w5 {
         width: 5%;
     }
-    td.w10 {
+    td.w10, th.w10 {
         width: 10%;
     }
-    td.w20 {
+    td.w20, th.w20 {
         width: 20%;
     }
-    td.w30 {
+    td.w30, th.w30 {
         width: 30%;
     }
-    td.w50 {
+    td.w50, th.w50 {
         width: 50%;
     }
-    td.w65 {
+    td.w65, th.w65 {
         width: 65%;
     }
-    td.w70 {
+    td.w70, th.w70 {
         width: 70%;
     }
-    td.w85 {
+    td.w85, th.w85 {
         width: 85%;
     }
-    td.w90 {
+    td.w90, th.w90 {
         width: 90%;
     }
     td.err {
@@ -827,6 +827,7 @@ EOD
         Show minify cache directory
     </a>
     <table>
+        <tr><th class="w10">combined file</th><th class="w5">index</th><th class="w85">component files</th></tr>
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
@@ -844,7 +845,7 @@ EOD
                 error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '():$minify_map=' . print_r( $minify_map, TRUE ) );
                 $dumped = TRUE;
             }
-            echo '<tr><td>' . $key . '</td><td></td><td class="err">Error: Value is not an array.</td></tr>';
+            echo '<tr><td class="w10">' . $key . '</td><td class="w5"></td><td class="err w85">Error: Value is not an array.</td></tr>';
             continue;
         }
         foreach( $value as $index => $file ) {
@@ -898,6 +899,7 @@ EOD
             if ( $files ) {
 ?>
     <table>
+        <tr><th class="w20">file</th><th class="w50">mtime</th><th class="w30">size</th></tr>
 <?php
                 foreach ( $files as $file ) {
                     $file_path = $dir . '/' . $file;
