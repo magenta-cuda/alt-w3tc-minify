@@ -851,12 +851,7 @@ EOD
         foreach( $value as $index => $file ) {
             echo '<tr>';
             if ( $index === 0 ) {
-                // echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
-                // TODO: above does not work: PHP Fatal error:  Uncaught Error: Class 'Minify_Core' not found in
-                // TODO: Minify_Core should have been loaded by Minify_Loader::loadClass() which should be registered by spl_autoload_register().
-                // TODO: Why is this not working?
-                // TODO: For now just hard code the path
-                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . content_url( 'cache/minify/' . $key ) . '">' . $key . '</a></td>';
+                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
             }
             $url = '';
             if ( file_exists( ABSPATH . $file ) ) {
@@ -890,8 +885,7 @@ EOD
 </head>
 <body>
 <?php
-            // TODO: '/cache/minify' should not be hard coded - see pretty_print_minify_map_entry() for related TODO.
-            $dir   = WP_CONTENT_DIR . '/cache/minify';
+            $dir   = \W3TC\Util_Environment::cache_blog_minify_dir();
             $files = scandir( $dir );
             $files = array_filter( $files, function( $v ) {
                   return preg_match( '#^\w+\.(js|css)$#', $v );
@@ -1255,7 +1249,7 @@ EOD
         if ( ! ( $options = get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [ ] ) ) ) {
             return FALSE;
         }
-        self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config( ) );
+        self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config() );
         add_action( 'wp_head', function( ) {
             # This is a way to insert a tag as the last item in the HTML <head> section.
             echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
