@@ -836,6 +836,7 @@ EOD
         $minify_map = (array) $minify_map;
         ksort( $minify_map, SORT_STRING );
     }
+    $dir = \W3TC\Util_Environment::cache_blog_minify_dir();
     foreach( $minify_map as $key => $value ) {
         if ( ! is_array( $value ) ) {
             // TODO: $minify_map has corrupt entries that are objects not arrays, why?
@@ -851,7 +852,13 @@ EOD
         foreach( $value as $index => $file ) {
             echo '<tr>';
             if ( $index === 0 ) {
-                echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key ) . '">' . $key . '</a></td>';
+                if ( file_exists( "$dir/$key" ) ) {
+                    echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key )
+                        . '">' . $key . '</a></td>';
+                } else {
+                    error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '(): File ' . "$dir/$key does not exists." );
+                    echo '<td class="w10" rowspan="' . count( $value ) . '">' . $key . '</td>';
+                }
             }
             $url = '';
             if ( file_exists( ABSPATH . $file ) ) {
