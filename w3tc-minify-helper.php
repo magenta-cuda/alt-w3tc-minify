@@ -247,6 +247,9 @@ class MC_Alt_W3TC_Minify {
     tr.hide {
         display: none;
     }
+    tr.exists_hide {
+        display: none;
+    }
     td, th {
         padding: 5px 15px;
         border: 2px solid black;
@@ -848,32 +851,35 @@ EOD
     <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
         Show minify cache directory
     </a>
-    <input type="checkbox" id="script" class="filter" checked>
-    <label for="script">script</label>
-    <input type="checkbox" id="css" class="filter" checked>
-    <label for="script">css</label>
-    <input type="checkbox" id="exists" class="filter">
+    <div style="border-width: 4px 4px 0; border-style:solid; border-color: black;">
+        <span style="">Filters:</span>
+        <input type="checkbox" id="script" class="filter" checked>
+        <label for="script">script</label>
+        <input type="checkbox" id="css" class="filter" checked>
+        <label for="script">css</label>
+        <input type="checkbox" id="exists" class="filter">
+        <label for="script">existing only</label>
+    </div>
     <script>
         document.querySelectorAll( 'input.filter' ).forEach( function( elem ) {
             elem.addEventListener( 'change', ( e ) => {
                 var remove = elem.checked;
                 switch ( elem.id ) {
                 case 'script':
-                    addRemoveClass( 'tr.is_script', 'hide', remove );
+                    addRemoveClass( 'tr.is_script:not(.head)', 'hide', remove );
                     break;
                 case 'css':
-                    addRemoveClass( 'tr.is_css', 'hide', remove );
+                    addRemoveClass( 'tr.is_css:not(.head)', 'hide', remove );
                     break;
                 case 'exists':
-                    addRemoveClass( 'tr.exists', 'hide', remove );
+                    addRemoveClass( 'tr:not(.exists):not(.head)', 'exists_hide', !remove );
                     break;
                 }
             } );
         } );
     </script>
-    <label for="script">existing only</label>
     <table>
-        <tr><th class="w10">combined file</th><th class="w5">index</th><th class="w85">component files</th></tr>
+        <tr class="head"><th class="w10">combined file</th><th class="w5">index</th><th class="w85">component files</th></tr>
 <?php
     $minify_map = json_decode( get_option( 'w3tc_minify', [] ) );
     if ( ! empty( $_REQUEST['file'] ) ) {
