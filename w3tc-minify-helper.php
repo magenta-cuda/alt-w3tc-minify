@@ -848,17 +848,27 @@ EOD
     <?php echo self::TABLE_SCRIPT; ?>
 </head>
 <body>
-    <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
-        Show minify cache directory
-    </a>
-    <div style="border-width: 4px 4px 0; border-style:solid; border-color: black;">
-        <span style="">Filters:</span>
-        <input type="checkbox" id="script" class="filter" checked>
-        <label for="script">script</label>
-        <input type="checkbox" id="css" class="filter" checked>
-        <label for="script">css</label>
-        <input type="checkbox" id="exists" class="filter">
-        <label for="script">existing only</label>
+    <div style="height:3ch; border-width: 4px 4px 0; border-style:solid; border-color: black; padding:0.25ch 2ch 0;">
+        <div style="width:8ch; float:left;">
+            <span style="">Filters:</span>
+        </div>
+        <div style="width:13ch; float:left;">
+            <input type="checkbox" id="script" class="filter" checked>
+            <label for="script">script</label>
+        </div>
+        <div style="width:13ch; float:left;">
+            <input type="checkbox" id="css" class="filter" checked>
+            <label for="script">css</label>
+        </div>
+        <div style="width:13ch; float:left;">
+            <input type="checkbox" id="exists" class="filter">
+            <label for="script">existing only</label>
+        </div>
+        <div style="width:25ch; float:right;">
+            <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
+                Show minify cache directory
+            </a>
+        </div>
     </div>
     <script>
         document.querySelectorAll( 'input.filter' ).forEach( function( elem ) {
@@ -907,7 +917,7 @@ EOD
                 if ( $exists = ( file_exists( "$dir/$key" ) ? ' exists' : '' ) ) {
                     echo "<tr class=\"{$script}{$exists}\">";
                     echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key )
-                        . '">' . $key . '</a></td>';
+                        . '" target="_blank">' . $key . '</a></td>';
                 } else {
                     error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '(): File ' . "$dir/$key does not exists." );
                     echo "<tr class=\"{$script}\">";
