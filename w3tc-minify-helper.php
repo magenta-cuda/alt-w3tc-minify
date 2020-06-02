@@ -244,6 +244,9 @@ class MC_Alt_W3TC_Minify {
     tr {
         width: 100%;
     }
+    tr.hide {
+        display: none;
+    }
     td, th {
         padding: 5px 15px;
         border: 2px solid black;
@@ -280,7 +283,21 @@ class MC_Alt_W3TC_Minify {
     }
 </style>
 EOD;
-
+    const TABLE_SCRIPT                 = <<<EOD
+<script>
+function addRemoveClass( selector, theClass, remove = false ) {
+    var list = document.querySelectorAll( selector );
+    list.forEach( function( elem ) {
+        var theClasses = elem.className;
+        if ( !remove ) {
+            elem.className = theClasses + ' ' + theClass;
+        } else {
+            elem.ClassName = theClasses.replace( new RegExp( '(^|\s+)' + theClass ), '' );
+        }
+    } );
+}
+</script>
+EOD;
     private static $debug              = NULL;
     private static $theme              = NULL;   # MD5 of the current theme
     private static $basename           = NULL;   # the basename of the current template in the current theme
@@ -821,6 +838,7 @@ EOD
 <html>
 <head>
     <?php echo self::TABLE_STYLE; ?>
+    <?php echo self::TABLE_SCRIPT; ?>
 </head>
 <body>
     <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
@@ -850,15 +868,19 @@ EOD
             continue;
         }
         foreach( $value as $index => $file ) {
-            echo '<tr>';
             if ( $index === 0 ) {
-                if ( file_exists( "$dir/$key" ) ) {
+                $script = substr_compare( $key, '.js', -3 ) === 0 ? 'is_script' : '';
+                if ( $exists = ( file_exists( "$dir/$key" ) ? ' exists' : '' ) ) {
+                    echo "<tr class=\"{$script}{$exists}\">";
                     echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key )
                         . '">' . $key . '</a></td>';
                 } else {
                     error_log( 'ACTION::wp_ajax_' . self::AJAX_GET_MINIFY_MAP . '(): File ' . "$dir/$key does not exists." );
+                    echo "<tr class=\"{$script}\">";
                     echo '<td class="w10" rowspan="' . count( $value ) . '">' . $key . '</td>';
                 }
+            } else {
+                echo "<tr class=\"{$script}{$exists}\">";
             }
             $url = '';
             if ( file_exists( ABSPATH . $file ) ) {
