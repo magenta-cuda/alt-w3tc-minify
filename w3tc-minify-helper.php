@@ -286,13 +286,17 @@ EOD;
     const TABLE_SCRIPT                 = <<<EOD
 <script>
 function addRemoveClass( selector, theClass, remove = false ) {
-    var list = document.querySelectorAll( selector );
-    list.forEach( function( elem ) {
+    const re = new RegExp( '(^|\\\\s+)' + theClass );
+    document.querySelectorAll( selector ).forEach( function( elem ) {
         var theClasses = elem.className;
         if ( !remove ) {
-            elem.className = theClasses + ' ' + theClass;
+            if ( !re.test( theClasses) ) {
+                theClasses += ' ' + theClass;
+                elem.className = theClasses;
+            }
         } else {
-            elem.ClassName = theClasses.replace( new RegExp( '(^|\s+)' + theClass ), '' );
+            theClasses = theClasses.replace( re, '' );
+            elem.className = theClasses;
         }
     } );
 }
@@ -844,6 +848,30 @@ EOD
     <a href="<?php echo admin_url( 'admin-ajax.php', 'relative' ) . '?action=' . self::AJAX_GET_MINIFY_CACHE_LIST; ?>" target="_blank">
         Show minify cache directory
     </a>
+    <input type="checkbox" id="script" class="filter" checked>
+    <label for="script">script</label>
+    <input type="checkbox" id="css" class="filter" checked>
+    <label for="script">css</label>
+    <input type="checkbox" id="exists" class="filter">
+    <script>
+        document.querySelectorAll( 'input.filter' ).forEach( function( elem ) {
+            elem.addEventListener( 'change', ( e ) => {
+                var remove = elem.checked;
+                switch ( elem.id ) {
+                case 'script':
+                    addRemoveClass( 'tr.is_script', 'hide', remove );
+                    break;
+                case 'css':
+                    addRemoveClass( 'tr.is_css', 'hide', remove );
+                    break;
+                case 'exists':
+                    addRemoveClass( 'tr.exists', 'hide', remove );
+                    break;
+                }
+            } );
+        } );
+    </script>
+    <label for="script">existing only</label>
     <table>
         <tr><th class="w10">combined file</th><th class="w5">index</th><th class="w85">component files</th></tr>
 <?php
@@ -869,7 +897,7 @@ EOD
         }
         foreach( $value as $index => $file ) {
             if ( $index === 0 ) {
-                $script = substr_compare( $key, '.js', -3 ) === 0 ? 'is_script' : '';
+                $script = substr_compare( $key, '.js', -3 ) === 0 ? 'is_script' : 'is_css';
                 if ( $exists = ( file_exists( "$dir/$key" ) ? ' exists' : '' ) ) {
                     echo "<tr class=\"{$script}{$exists}\">";
                     echo '<td class="w10" rowspan="' . count( $value ) . '"><a href="' . \W3TC\Minify_Core::minified_url( $key )
