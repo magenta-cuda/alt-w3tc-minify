@@ -165,7 +165,8 @@
  */
 
 #                                              1234567812345678
-if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {
+# if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {
+if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS
     #                                                                   1234567812345678
     define( 'MC_AWM_191208_DEBUG_OFF',                                0x0000000000000000 );
     define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                 0x0000000000000001 );   # This enables WP-CLI unit testing
@@ -178,6 +179,7 @@ if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_e
     define( 'MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST',     0x0000000000000100 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST',          0x0000000000000200 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS',       0x0000000000001000 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
                                    # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
@@ -189,6 +191,7 @@ if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_e
                                    # | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
@@ -1427,6 +1430,12 @@ EOD
                         $conditional = self::$conditional_scripts && in_array( $script_tag, self::$conditional_scripts );
                         # Remove the HTML start and end tags from $script_tag.
                         $content     = preg_replace( '#</?script(\s.*?>|>)#', '', $script_tag );
+                        if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS ) {
+                            static $counter = 0;
+                            $content  = "console.log( '##### MC_W3TCM: inline script $counter starts here.' );\n" . $content;
+                            $content .= "\nconsole.log( '##### MC_W3TCM: inline script $counter ends here.' );\n";
+                            ++$counter;
+                        }
                         # Bracket HTML comment conditional inline scripts with a matching JavaScript condition.
                         if ( $conditional ) {
                             $condition = 'w3tcmHtmlCond_' . md5( $script_tag );
