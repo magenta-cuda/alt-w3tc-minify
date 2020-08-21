@@ -1,6 +1,6 @@
-# Update of March 2020
+# Update of August 2020
 
-In January 2020 W3TC released a new version 0.13.0. With respect to JavaScript
+In August 2020 W3TC released a new version 0.14.4. With respect to JavaScript
 minification my analysis is still valid. The problems found in the analysis have not
 been fixed.
 
