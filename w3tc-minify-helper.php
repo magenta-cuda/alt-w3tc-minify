@@ -31,7 +31,7 @@
 /*
  * This program runs either in version 2 mode or version 1 mode. You should use version 2 as version 1 will not
  * work under certain conditions which may be easily true on modern advanced websites. Version 1 is maintained
- * to support backward compatility and should not be used for a new application. To enable version 2 just click
+ * to support backward compatibility and should not be used for a new application. To enable version 2 just click
  * on the "Auto Minify:Xxx" link in this plugin's entry in the "Installed Plugins" admin page. This link toggles
  * "Off" and "On" this plugin's minifier for W3TC'S auto minification mode.
  */
@@ -203,7 +203,7 @@ if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MAR
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
     const W3TC_FILE                    = 'w3-total-cache/w3-total-cache.php';
-    const W3TC_VERSION                 = '0.13.3';                                     # tested against this version of W3TC
+    const W3TC_VERSION                 = '0.14.4';                                     # tested against this version of W3TC
     const OPTION_NAME                  = 'mc_alt_w3tc_minify';
     const OPTION_LOG_NAME              = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME          = 'mc_alt_w3tc_minify_skipped';
@@ -366,10 +366,13 @@ EOD;
                 error_log( 'MC_Alt_W3TC_Minify: Cannot create directory "' . self::OUTPUT_DIR . '", getmypid()=' . getmypid() );
             }
         }
+        # If version 2 (auto minify mode) is enabled then monitor_minify_autojs() initializes version 2 and returns true.
         if ( self::monitor_minify_autojs() ) {
             # Auto minify is enabled so manual minify is disabled.
+            # The remaining code is for version 1 (manual minify mode) and should be skipped.
             return;
         }
+        # Entering version 1 (manual minify mode) code.
         # When W3TC is in manual minify mode its configuration file specifies the ordered list of JavaScript files to emit in the
         # head, body and footer sections for the current theme and template combination.
         # Get additional files to skip.
