@@ -15,12 +15,6 @@ on some very common JavaScript files. There is something seriously wrong with qu
 at W3TC. I don't think they are doing any automated testing. For an application of this size that
 has to be an absolute necessity.
 
-# Update of November 2019
-
-In November 2019 W3TC released a new version 0.11.0. With respect to JavaScript
-minification my analysis is still valid. The problems found in the analysis have not
-been fixed.
-
 # Update of July 2019
 
 I original wrote this plugin to set the vector of JavaScript files in W3TC's
@@ -181,15 +175,18 @@ in the function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
 ## auto mode
 
 Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
-sent to browser. W3TC searches for the next <script> element. If this <script> element
-has a "src" attribute the element is removed and the JavaScript file of the "src"
+sent to browser. W3TC searches for the next <script> element. Unfortunately, it ignores <script>
+elements embedded in HTML comments (e.g., "<!--[if lte IE 8]> <script>...</script> <![endif]-->").
+If this <script> element
+has a "src" attribute the element is removed from the output buffer and the JavaScript file of the "src"
 attribute is appended to the current vector of files to be minified. If this <script>
-element does not have a "src" attribute a <script> element is inserted before this element.
+element does not have a "src" attribute (i.e., it is an inline script) a new <script> element is
+inserted before this element in the output buffer.
 This inserted <script> element has a "src" attribute set to a minified file whose contents
 is the concatenation of the contents of the files in current vector of files to be minified.
 The current vector of files to be minified is reset to empty and the search for the next <script>
 element is repeated. N.B. the <script> element without a "src" attribute is not modified.
-This algorithm is implemented by W3TC 0.9.7.5 in the class Minify_AutoJs in the file
+This algorithm is implemented by W3TC 0.14.4 in the class Minify_AutoJs in the file
 "Minify_AutoJs.php".
  
 # Persistent W3TC 0.9.7.5 JavaScript Minification Data
