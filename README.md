@@ -176,7 +176,7 @@ in the function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
 
 Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
 sent to browser. W3TC searches for the next <script> element. Unfortunately, it ignores <script>
-elements embedded in HTML comments (e.g., "<!--[if lte IE 8]> <script>...</script> <![endif]-->").
+elements embedded in HTML comments (e.g., `<!--[if lte IE 8]> <script>...</script> <![endif]-->`).
 If this <script> element
 has a "src" attribute the element is removed from the output buffer and the JavaScript file of the "src"
 attribute is appended to the current vector of files to be minified. If this <script>
