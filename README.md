@@ -185,9 +185,11 @@ inserted before this element in the output buffer.
 This inserted <script> element has a "src" attribute set to a minified file whose contents
 is the concatenation of the contents of the files in current vector of files to be minified.
 The current vector of files to be minified is reset to empty and the search for the next <script>
-element is repeated. N.B. the <script> element without a "src" attribute is not modified.
-This algorithm is implemented by W3TC 0.14.4 in the class Minify_AutoJs in the file
-"Minify_AutoJs.php".
+element is repeated. N.B. the <script> element without a "src" attribute is not modified. Hence, if the
+HTML document has many external scripts interleaved with inline scripts (as would be the case when
+using WordPress's wp_localize_script() or wp_add_inline_script()) many minified combined script files
+would be emitted instead of just one. This algorithm is implemented by W3TC 0.14.4 in the class
+Minify_AutoJs in the file "Minify_AutoJs.php".
  
 # Persistent W3TC 0.9.7.5 JavaScript Minification Data
 
