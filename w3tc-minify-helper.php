@@ -355,7 +355,7 @@ EOD;
     private static $inline_script_tag_pos     = NULL;
     private static $end_head_tag_pos          = NULL;   # not NULL only when process_script_tag() is processing the </head> tag
     private static $inline_script_conditional = NULL;
-    private static $inline_script_embed_pos   = NULL;
+    # private static $inline_script_embed_pos   = NULL;  # currently not used as the alternative solution does not need this
     private static $w3tc_minify_helpers       = NULL;
     private static $serve_options             = NULL;
     public static function init() {
@@ -1344,8 +1344,8 @@ EOD
             add_filter( 'w3tc_process_content', function( $buffer ) use ( $monitor ) {
                 if ( self::$auto_minify ) {
                     if ( $matches = self::check_for_conditional_html( $buffer ) ) {
-                        // TODO: If the conditional html has a <script> element then this may change the order of <script> elements execution.
-                        //       However, it seems the included JavaScript is often immune to changes in script order execution.
+                        // If the conditional html has a <script> element then this may change the order of <script> elements execution.
+                        //  However, it seems the conditionally included JavaScript is often immune to changes in script order execution.
                         # W3TC removes all HTML comments before processing <script> elements - see Minify_AutoJs::execute().
                         # Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
                         # also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
@@ -1630,9 +1630,8 @@ EOD
                         if ( is_null( $match ) ) {
                             # No src attribute so this is an inline <script> element.
                             self::$last_script_tag_is        = self::INLINE_SCRIPT;
-                            // TODO: The following does not work because $minify_auto_js->buffer is private.
+                            // The following does not work because $minify_auto_js->buffer is private.
                             // PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$buffer
-                            // TODO: Must find another way of setting self::$inline_script_embed_pos.
                             // if ( self::$inline_script_conditional ) {
                             //     self::$inline_script_embed_pos = strpos( $minify_auto_js->buffer, '<![endif]-->', self::$inline_script_tag_pos ) + 11;
                             // } else {
@@ -1640,6 +1639,8 @@ EOD
                             // }
                             // error_log( 'FILTER::w3tc_minify_js_do_flush_collected():substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256)='
                             //     . substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256) );
+                            // Alternatively, instead of embedding the minified combined script file after the last script we
+                            // can embed just before the </head> tag and escape the need to maintain the 'embed_pos' value.
                             # Clear the inline script data.
                             self::$inline_script_tag_pos     = NULL;
                             self::$inline_script_conditional = NULL;
@@ -1693,8 +1694,8 @@ EOD
                     case self::SKIPPED_SCRIPT:
                     case self::HEAD_END:
                     case self::AFTER_LAST_SCRIPT:
-                        # TODO: If the <body> section contains only inline <script> elements then this will not be called.
-                        #       A solution may be to insert a dummy non-inline <script> into the <body> section.
+                        # If the <body> section contains only inline <script> elements then this will not be called.
+                        # This is solved by inserting a dummy non-inline <script> into the <body> section.
                         $data['files_to_minify'] = array_merge( array_filter( self::$files_to_minify ) );
                         self::$files_to_minify   = array_map( function( $v ) { return NULL; }, self::$files_to_minify );
                         break;
@@ -1720,7 +1721,7 @@ EOD
                 if ( self::$auto_minify ) {
                     # The embed position may be wrong if there are inline script elements as W3TC does not process these as files
                     # to be minified and does not update the embed position accordingly.
-                    // TODO: Calculate embed position considering the replaced in line scripts 
+                    // Calculating the embed position considering the replaced inline scripts is difficult.
                     // $data['embed_pos'] = ?;
                     # Alternatively, $data['embed_pos'] can be fixed in the filter 'w3tc_minify_js_step' - currently this is the solution.
                 }
@@ -2232,7 +2233,7 @@ EOD
         while ( $offset < $length ) {
             $pos = strpos( $buffer, $delim, $offset );
             if ( $pos === FALSE ) {
-                // TODO: This should not happen in a correct JavaScript file. There must be something wrong somewhere with my parser!
+                # This should not happen in a correct JavaScript file. There must be something wrong somewhere with my parser!
                 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
                     error_log( 'MC_Alt_W3TC_Minify Error: parse_js_string(): Unmatched . \'' . $delim .'\'' );
                     error_log( 'MC_Alt_W3TC_Minify Error: parse_js_string(): $buffer=' . substr( $buffer, $offset, 256 ) );
@@ -2311,7 +2312,7 @@ EOD
                 return $callable[0] . '::' . $callable[1];
             }
         }
-        // TODO: The other cases do not occur in this application.
+        # The other cases do not occur in this application.
         return 'Error: callable_to_string() failed.';
     }
     # combine_minify() is adapted from Minify0_Minify::_combineMinify().
