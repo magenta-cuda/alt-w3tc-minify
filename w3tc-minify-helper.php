@@ -1320,6 +1320,7 @@ EOD
             'cache_id'        => $cache_id
         ];
     }
+    # Version 2 code starts here. Version 2 code adds actions and filters to monitor/modify the execution of W3TC in auto minify mode.
     # monitor_minify_autojs() can analyze the processing of Minify_AutoJs.php.
     # monitor_minify_autojs() optionally can replace the minify processing of W3TC's Minify_AutoJs.php.
     # If get_option( self::OPTION_MONITOR_MINIFY_AUTOJS, [] )[ self::AUTO_MINIFY_OPTION ] is TRUE then monitor_minify_autojs()
