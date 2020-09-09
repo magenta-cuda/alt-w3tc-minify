@@ -1789,7 +1789,8 @@ EOD
         $w3tc_cache_minify_dir_prefix     = '/' . trim( $parsed['path'], '/' ) . '/';
         $w3tc_cache_minify_dir_prefix_len = strlen( $w3tc_cache_minify_dir_prefix );
         $w3tc_cache_minify_filename       = \W3TC\Util_Environment::remove_query_all( substr( $_SERVER['REQUEST_URI'], $w3tc_cache_minify_dir_prefix_len ) );
-        if ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
+        if ( ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
+				|| ! empty( $_REQUEST['w3tc_minify'] ) )
             && ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
             # error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_level=' . $ob_level );
             ob_start( function( $buffer ) use ( $w3tc_cache_minify_filename ) {
