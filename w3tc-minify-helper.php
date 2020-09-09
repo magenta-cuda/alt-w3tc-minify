@@ -1477,7 +1477,8 @@ EOD
                             $data['script_tag_new'] = "<!-- mc_w3tcm: inline replaced. -->\n";
                         }
                         # self::$inline_script_tag_pos     = $data['script_tag_pos'];
-                        # Track location of the first and last inline script as these can be used to compute a better embed_pos.
+                        # Minify_AutoJs::process_script_tag() does not update embed_pos when processing inline scripts.
+                        # So, track location of the first and the last inline script as these can be used to compute a better embed_pos.
                         if ( self::$first_inline_script_start_pos === NULL ) {
                             self::$first_inline_script_start_pos = $data['script_tag_pos'];
                             self::$first_inline_script_end_pos   = self::$first_inline_script_start_pos + strlen( $data['script_tag_new'] );
@@ -1697,6 +1698,9 @@ EOD
                         self::print_r( self::$last_script_tag_is , 'self::$last_script_tag_is' );
                         self::print_r( self::$files_to_minify,     'self::$files_to_minify'    );
                     }
+                    # When this filter is called Minify_AutoJs::process_script_tag() has set $data['embed_pos'] to the position of the first
+                    # external script if the <head> section is being processed or the position of the last external script if the <body>
+                    # section is being processed.
                     # Set $data['files_to_minify'] to its shadow.
                     switch ( self::$last_script_tag_is ) {
                     # case self::INLINE_SCRIPT: should not happen because filter 'w3tc_minify_js_do_flush_collected' prevents it.
@@ -1717,8 +1721,16 @@ EOD
                         # flush_collected() is being called from process_script_tag() when it is processing the </head> tag.
                         # The head scripts needs to be emitted just before the </head> tag so trailing scripts bracketed by
                         # HTML comments are handled correctly.
-                        $data['embed_pos']      = self::$end_head_tag_pos;
-                        self::$end_head_tag_pos = NULL;
+                        $data['embed_pos']                   = self::$end_head_tag_pos;
+                        self::$end_head_tag_pos              = NULL;
+                        self::$first_inline_script_start_pos = NULL;
+                        self::$first_inline_script_end_pos   = NULL;
+                        self::$last_inline_script_start_pos  = NULL;
+                        self::$last_inline_script_end_pos    = NULL;
+                    } else {
+                        if ( self::$last_inline_script_start_pos > $data['embed_pos'] ) {
+                            $data['embed_pos'] = self::$last_inline_script_end_pos;
+                        }
                     }
                 }
                 return $data;
