@@ -1320,6 +1320,7 @@ EOD
             'cache_id'        => $cache_id
         ];
     }
+    ########################################################################################################################################
     # Version 2 code starts here. Version 2 code adds actions and filters to monitor/modify the execution of W3TC in auto minify mode.
     # monitor_minify_autojs() can analyze the processing of Minify_AutoJs.php.
     # monitor_minify_autojs() optionally can replace the minify processing of W3TC's Minify_AutoJs.php.
@@ -1330,22 +1331,22 @@ EOD
             return FALSE;
         }
         self::$w3tc_minify_helpers = new \W3TC\_W3_MinifyHelpers( \W3TC\Dispatcher::config() );
-        add_action( 'wp_head', function( ) {
-            # This is a way to insert a tag as the last item in the HTML <head> section.
-            echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
-        }, PHP_INT_MAX );
-        add_action( 'wp_footer', function( ) {
-            # This is a way to insert a tag as the last item in the HTML <body> section.
-            echo '<div style="display:none;">##### SHOULD BE LAST TAG IN BODY SECTION #####</div>';
-        }, PHP_INT_MAX );
+        # add_action( 'wp_head', function( ) {
+        #     # This is a way to insert a tag as the last item in the HTML <head> section.
+        #     echo '<meta name="mc_w3tcm" content="##### SHOULD BE LAST TAG IN HEAD SECTION #####">';
+        # }, PHP_INT_MAX );
+        # add_action( 'wp_footer', function( ) {
+        #     # This is a way to insert a tag as the last item in the HTML <body> section.
+        #     echo '<div style="display:none;">##### SHOULD BE LAST TAG IN BODY SECTION #####</div>';
+        # }, PHP_INT_MAX );
         self::$auto_minify = ! empty( $options[ self::AUTO_MINIFY_OPTION ] );
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_process_content'] ) ) ) {
             add_filter( 'w3tc_process_content', function( $buffer ) use ( $monitor ) {
                 if ( self::$auto_minify ) {
                     if ( $matches = self::check_for_conditional_html( $buffer ) ) {
-                        // If the conditional html has a <script> element then this may change the order of <script> elements execution.
-                        //  However, it seems the conditionally included JavaScript is often immune to changes in script order execution.
+                        # If the conditional html has a <script> element then this may change the order of <script> elements execution.
+                        # However, it seems the conditionally included JavaScript is usually immune to changes in script order execution.
                         # W3TC removes all HTML comments before processing <script> elements - see Minify_AutoJs::execute().
                         # Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
                         # also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
