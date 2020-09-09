@@ -1784,6 +1784,7 @@ EOD
             error_log( 'MC_Alt_W3TC_Minify::monitor_minify_autojs():$ob_status=' . print_r( $ob_status, TRUE ) );
         }
         # Here we are only interested in a HTTP request for an auto minified JavaScript file.
+        # The URL for an auto minified JavaScript file is resolved by Minify_Plugin::init() in file Minify_Minify_Plugin.php
         $url                              = \W3TC\Util_Environment::filename_to_url( W3TC_CACHE_MINIFY_DIR );
         $parsed                           = parse_url( $url );
         $w3tc_cache_minify_dir_prefix     = '/' . trim( $parsed['path'], '/' ) . '/';
@@ -1805,6 +1806,8 @@ EOD
                     # This is a failed HTTP request.
                     # $_GET['ext'] is not part of the original HTTP request but is created by W3TC for a HTTP request for
                     # minified JavaScript file. It is not initially available so the following check must be in the callback.
+                    # The minified file is built by Minify_MinifiedFileRequestHandler::process() in file Minify_MinifiedFileRequestHandler.php
+                    # Minify_MinifiedFileRequestHandler::process() calls Minify0_Minify::serve() which calls Minify0_Minify::_combineMinify()
                     if ( array_key_exists( 'ext', $_GET ) && $_GET['ext'] === 'js' ) {
                         # This is a HTTP request for an auto minified JavaScript file.
                         if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER ) {
