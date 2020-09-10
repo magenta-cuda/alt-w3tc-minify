@@ -34,7 +34,7 @@ admin page. This link toggles the plugin's minifier "Off" and "On".
 
 ![Screenshot](https://raw.githubusercontent.com/magenta-cuda/alt-w3tc-minify/master/assets/plugin_entry_screenshot.png)
 
-This plugin in "auto minify" mode assumes that only the WordPress API, i.e., only the following functions are used to inject scripts into the HTML document.
+This plugin in "auto minify" mode assumes that only the WordPress API, i.e., only the following functions are used to embed scripts into the HTML document.
 
     wp_enqueue_script()
     wp_add_inline_script()
@@ -73,7 +73,7 @@ is not being done.
 
 # My Analysis of W3TC JavaScript Minification
 
-## auto mode (W3TC 0.14.4)
+## auto mode (W3TC 0.9.7.5 to W3TC 0.14.4)
 
 WT3C 0.14.4 in "Auto Minify" mode does not batch the "localize",
 "translation", "before" and "after" inline <script> elements. Rather it stops
@@ -161,7 +161,7 @@ wp-includes/template-loader.php except it doesn't include the filter.
 
 # Simplified Description of W3TC's JavaScript Minification Algorithms
 
-## auto mode (W3TC 0.14.4)
+## auto mode (W3TC 0.9.7.5 to W3TC 0.14.4)
 
 Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
 sent to browser. W3TC searches for the next <script> element. Unfortunately, it ignores <script>

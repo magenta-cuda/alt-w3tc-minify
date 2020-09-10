@@ -43,6 +43,17 @@
  * details on how the "auto mode" JavaScript minifier of W3TC works and optionally replace W3TC's minifier with
  * this plugin's minifier. This should reduce the number of minified files emitted.
  *
+ * This plugin in "auto minify" mode assumes that only the WordPress API, i.e., only the following functions are
+ * used to embed scripts into the HTML document.
+ *
+ *    wp_enqueue_script()
+ *    wp_add_inline_script()
+ *    wp_script_add_data()
+ *    wp_localize_script()
+ *
+ * Using ad hoc methods to embed scripts into the HTML document may invalidate assumptions made by this plugin and
+ * cause this plugin to malfunction.
+ *
  * The following WP-CLI commands will enable/disable monitoring of W3TC's "minify auto js" filters:
  *
  *     php wp-cli.phar eval 'MC_Alt_W3TC_Minify::set_monitor_minify_autojs_options( "FILTER::w3tc_process_content", TRUE );'
