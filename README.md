@@ -137,8 +137,8 @@ files instead of one.
  
 Also WT3C 0.14.4 in "Auto Minify" mode ignores "conditional" scripts, i.e.,
 scripts embedded in HTML comments, e.g., `"<!--[if lt IE 9]>\n<script>...</script><![endif]-->\n"`.
-These are emitted in their original location but the minified combined scripts are relocated to
-the start of the `<head>` block. This changes the relative order of executions of these scripts.
+These are emitted in their original location but the minified combined scripts may be relocated to
+the location of the first `<script>` element. This may change the relative order of executions of these scripts.
 
     <script>/* some "localize", "translation" or "before" script */</script>
     <script src="http://localhost/wp-content/cache/minify/0ae95.js"></script>
