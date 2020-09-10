@@ -128,13 +128,18 @@ wp-includes/template-loader.php except it doesn't include the filter.
 
 ## auto mode
 
-WT3C 0.9.7.5 in "Auto Minify" mode also does not batch the "localize",
+WT3C 0.14.4 in "Auto Minify" mode does not batch the "localize",
 "translation", "before" and "after" inline <script> elements. Rather it stops
 batching when it encounters a "localize", "translation", "before" or "after"
 inline <script> element" and flushes the current batch file, emits the inline
 script element and starts a new batch file. This results in multiple batch
 files instead of one.
  
+Also WT3C 0.14.4 in "Auto Minify" mode ignores "conditional" scripts, i.e.,
+scripts embedded in HTML comments, e.g., `"<!--[if lt IE 9]>\n<script>...</script><![endif]-->\n"`.
+These are emitted in their original location but the minified combined scripts are relocated to
+the start of the `<head>` block. This changes the relative order of executions of these scripts.
+
     <script>/* some "localize", "translation" or "before" script */</script>
     <script src="http://localhost/wp-content/cache/minify/0ae95.js"></script>
     <script>/* some "localize", "translation" or "before" script */</script>
@@ -155,7 +160,7 @@ files instead of one.
     <![endif]-->
 
 If you are interested in verifying the above for yourself you can find the
-implementation of W3TC 0.9.7.5 JavaScript minification in "auto mode" in the
+implementation of W3TC 0.14.4 JavaScript minification in "auto mode" in the
 class Minify_AutoJs in the file "Minify_AutoJs.php".
 
 # Simplified Description of W3TC's JavaScript Minification Algorithms
