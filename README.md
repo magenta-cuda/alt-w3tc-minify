@@ -34,7 +34,7 @@ admin page. This link toggles the plugin's minifier "Off" and "On".
 
 ![Screenshot](https://raw.githubusercontent.com/magenta-cuda/alt-w3tc-minify/master/assets/plugin_entry_screenshot.png)
 
-This plugin assumes that only the WordPress API, i.e., only the following functions are used to inject scripts into the HTML document.
+This plugin in "auto minify" mode assumes that only the WordPress API, i.e., only the following functions are used to inject scripts into the HTML document.
 
     wp_enqueue_script()
     wp_add_inline_script()
@@ -71,11 +71,48 @@ code in WordPress's wp-includes/template-loader.php. This requires W3TC to manua
 update it everytime WordPress's wp-includes/template-loader.php is updated and this
 is not being done.
 
-# My Analysis of W3TC 0.9.7.5 JavaScript Minification
+# My Analysis of W3TC JavaScript Minification
 
-## manual mode
+## auto mode (W3TC 0.14.4)
 
-In my opinion WT3C 0.9.7.5 in "Manual Minify" mode also has a significant design flaw.
+WT3C 0.14.4 in "Auto Minify" mode does not batch the "localize",
+"translation", "before" and "after" inline <script> elements. Rather it stops
+batching when it encounters a "localize", "translation", "before" or "after"
+inline <script> element" and flushes the current batch file, emits the inline
+script element and starts a new batch file. This results in multiple batch
+files instead of one.
+
+Also WT3C 0.14.4 in "Auto Minify" mode ignores "conditional" scripts, i.e.,
+scripts embedded in HTML comments, e.g., `"<!--[if lt IE 9]>\n<script>...</script><![endif]-->\n"`.
+These are emitted in their original location but the minified combined scripts may be relocated to
+the location of the first `<script>` element. This may change the relative order of executions of these scripts.
+
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/0ae95.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/dc06c.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/63a69.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/b4041.js"></script>
+    <script>/* some "localize", "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/cache/minify/ab379.js"></script>
+    <!--[if lt IE 9]>"
+    <script>/* some "localize" script */</script>
+    <![endif]-->
+    <!--[if lt IE 9]>
+    <script>/* some "translation" or "before" script */</script>
+    <script src="http://localhost/wp-content/plugins/.../some-javascript-file.js"></script>
+    <script>/* some "after" script */</script>
+    <![endif]-->
+
+If you are interested in verifying the above for yourself you can find the
+implementation of W3TC 0.14.4 JavaScript minification in "auto mode" in the
+class Minify_AutoJs in the file "Minify_AutoJs.php".
+
+## manual mode (W3TC 0.9.7.5)
+
+In my opinion WT3C 0.9.7.5 in "Manual Minify" mode has a significant design flaw.
 WordPress may decorate the <script> tag of the JavaScript file by prepending 
 "localize", "translation", "before" inline <script> elements and appending a
 "after" inline <script> element. It may also bracket the script tag with a 
@@ -122,58 +159,9 @@ problem with the filter 'template_include' is caused by the function
 Minify_Plugin::get_template() which just duplicates the code in WordPress's 
 wp-includes/template-loader.php except it doesn't include the filter.
 
-## auto mode
-
-WT3C 0.14.4 in "Auto Minify" mode does not batch the "localize",
-"translation", "before" and "after" inline <script> elements. Rather it stops
-batching when it encounters a "localize", "translation", "before" or "after"
-inline <script> element" and flushes the current batch file, emits the inline
-script element and starts a new batch file. This results in multiple batch
-files instead of one.
- 
-Also WT3C 0.14.4 in "Auto Minify" mode ignores "conditional" scripts, i.e.,
-scripts embedded in HTML comments, e.g., `"<!--[if lt IE 9]>\n<script>...</script><![endif]-->\n"`.
-These are emitted in their original location but the minified combined scripts may be relocated to
-the location of the first `<script>` element. This may change the relative order of executions of these scripts.
-
-    <script>/* some "localize", "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/cache/minify/0ae95.js"></script>
-    <script>/* some "localize", "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/cache/minify/dc06c.js"></script>
-    <script>/* some "localize", "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/cache/minify/63a69.js"></script>
-    <script>/* some "localize", "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/cache/minify/b4041.js"></script>
-    <script>/* some "localize", "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/cache/minify/ab379.js"></script>
-    <!--[if lt IE 9]>"
-    <script>/* some "localize" script */</script>
-    <![endif]-->
-    <!--[if lt IE 9]>
-    <script>/* some "translation" or "before" script */</script>
-    <script src="http://localhost/wp-content/plugins/.../some-javascript-file.js"></script>
-    <script>/* some "after" script */</script>
-    <![endif]-->
-
-If you are interested in verifying the above for yourself you can find the
-implementation of W3TC 0.14.4 JavaScript minification in "auto mode" in the
-class Minify_AutoJs in the file "Minify_AutoJs.php".
-
 # Simplified Description of W3TC's JavaScript Minification Algorithms
 
-## manual mode
-
-Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
-sent to browser. W3TC removes <script> elements with a "src" attribute set to a JavaScript
-file in a "include", "include-body" or "include-footer" minified file. W3TC inserts
-immediately after the <head> tag a <script> element with "src" attribute set to the "include"
-minified file, inserts immediately after the <body> tag a <script> element with "src" attribute
-set to the "include-body" minified file and inserts just before the </body> tag a <script>
-element with "src" attribute set to the "include-footer" minified file. <script> elements
-without a "src" attribute are not modified. This algorithm is implemented by W3TC 0.9.7.5
-in the function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
-
-## auto mode
+## auto mode (W3TC 0.14.4)
 
 Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
 sent to browser. W3TC searches for the next <script> element. Unfortunately, it ignores <script>
@@ -192,6 +180,18 @@ using WordPress's wp_localize_script() or wp_add_inline_script()) many minified 
 would be emitted instead of just one. This algorithm is implemented by W3TC 0.14.4 in the class
 Minify_AutoJs in the file "Minify_AutoJs.php".
  
+## manual mode (W3TC 0.9.7.5)
+
+Using PHP's output buffering - ob_start() - W3TC edits the output buffer before it is
+sent to browser. W3TC removes <script> elements with a "src" attribute set to a JavaScript
+file in a "include", "include-body" or "include-footer" minified file. W3TC inserts
+immediately after the <head> tag a <script> element with "src" attribute set to the "include"
+minified file, inserts immediately after the <body> tag a <script> element with "src" attribute
+set to the "include-body" minified file and inserts just before the </body> tag a <script>
+element with "src" attribute set to the "include-footer" minified file. <script> elements
+without a "src" attribute are not modified. This algorithm is implemented by W3TC 0.9.7.5
+in the function Minify_Plugin::ob_callback() in the file "Minify_Plugin.php".
+
 # Persistent W3TC 0.9.7.5 JavaScript Minification Data
 
 The parameters for minification can be found in the "minify.*" properties of W3TC's JSON configuration
