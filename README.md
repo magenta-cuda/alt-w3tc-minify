@@ -34,18 +34,14 @@ admin page. This link toggles the plugin's minifier "Off" and "On".
 
 ![Screenshot](https://raw.githubusercontent.com/magenta-cuda/alt-w3tc-minify/master/assets/plugin_entry_screenshot.png)
 
-If the page contains conditional HTML comments with <script> elements, e.g.
+This plugin assumes that only the WordPress API, i.e., only the following functions are used to inject scripts into the HTML document.
 
-    <!--[if lte IE 8]> <script>...</script> <![endif]-->
+    wp_enqueue_script()
+    wp_add_inline_script()
+    wp_script_add_data()
+    wp_localize_script()
 
-then there may be a problem caused by incorrect order of <script> element execution as these <script>
-elements are emitted in their original location and the minified batch files may have
-moved relative to that location. I am still trying to find a workaound for this.
-
-*W3TC 0.9.7.5 removes all HTML comments before processing <script> elements - see Minify_AutoJs::execute().
-Unfortunately, this removes the <script> elements included inside HTML comments. In particular, W3TC is
-also not handling <script> elements embedded inside HTML comments correctly with respect to <script>
-order execution. This in fact is what is making solving this problem difficult.*
+**Using ad hoc methods to embed scripts into the HTML document may invalidate assumptions made by this plugin and cause this plugin to malfunction.**
 
 # The original README
 
