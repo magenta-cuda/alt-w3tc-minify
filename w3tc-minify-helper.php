@@ -1485,6 +1485,14 @@ EOD
                         }
                         self::$last_inline_script_start_pos = $data['script_tag_pos'];
                         self::$last_inline_script_end_pos   = self::$last_inline_script_start_pos + strlen( $data['script_tag_new'] );
+                        # There is a problem with the above.
+                        # Conditional scripts are bracketed by HTML comments, e.g., "<!--[if lte IE 8]><script>...</script><![endif]-->"
+                        # The offsets above should include these but do not.
+                        if ( $conditional ) {
+                            self::$last_inline_script_end_pos += strlen( "<![endif]-->" );
+                            // TODO: What if white spaces precede "<![endif]-->" e.g., "</script>   <![endif]-->"
+                            // The other offsets are also wrong but currently self::$last_inline_script_end_pos is the only offset that is used.
+                        }
                         self::$inline_script_conditional    = $conditional;
                         if ( $monitor ) {
                             error_log( 'FILTER::w3tc_minify_js_do_local_script_minification():' );
