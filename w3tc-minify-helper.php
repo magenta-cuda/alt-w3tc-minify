@@ -1500,14 +1500,15 @@ EOD
                         # Conditional scripts are bracketed by HTML comments, e.g., "<!--[if lte IE 8]><script>...</script><![endif]-->"
                         # The offsets above should include these but do not.
                         if ( $conditional ) {
-                            self::$last_inline_script_end_pos += strlen( "<![endif]-->" );
-                            // TODO: What if white spaces precede "<![endif]-->" e.g., "</script>   <![endif]-->"
-                            // However, this is not a problem if the WordPress API i.e., the function
-                            // wp_script_add_data( ..., 'conditional', ... ), is used to add the "conditional" script as the current WordPress
-                            // implementation (Version 5.5.1) does not have any white spaces between '</script>' and '<![endif]-->'.
-                            // See implementation of WP_Scripts::do_item() in file ".../wp-includes/class.wp-scripts.php".
+                            # Assuming the conditional ends like this "</script>\n<![endif]-->" and 12 === strlen( "<![endif]-->" )
+                            self::$last_inline_script_end_pos += 1 + 12;
+                            # What if other white spaces or no white space precede "<![endif]-->" e.g., "</script><![endif]-->"
+                            # However, this is not a problem if the WordPress API i.e., the function
+                            # wp_script_add_data( ..., 'conditional', ... ), is used to add the "conditional" script as the current WordPress
+                            # implementation (Version 5.5.1) adds a single white space - a "\n" - between the '</script>' and '<![endif]-->'.
+                            # See implementation of WP_Scripts::do_item() in file ".../wp-includes/class.wp-scripts.php".
                             // TODO: Implementation dependencies are dangerous!
-                            // The other offsets are also wrong but currently self::$last_inline_script_end_pos is the only offset that is used.
+                            # The other offsets are also wrong but currently self::$last_inline_script_end_pos is the only offset that is used.
                         }
                         self::$inline_script_conditional    = $conditional;
                         if ( $monitor ) {
