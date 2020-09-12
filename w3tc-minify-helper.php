@@ -1507,7 +1507,8 @@ EOD
                             # wp_script_add_data( ..., 'conditional', ... ), is used to add the "conditional" script as the current WordPress
                             # implementation (Version 5.5.1) adds a single white space - a "\n" - between the '</script>' and '<![endif]-->'.
                             # See implementation of WP_Scripts::do_item() in file ".../wp-includes/class.wp-scripts.php".
-                            // TODO: Implementation dependencies are dangerous!
+                            # This dangerous implementation dependency is fixed by "version 3/w3tc-minify-helper-v3.php" which canonicalizes
+                            # the output of WP_Scripts::do_item().
                             # The other offsets are also wrong but currently self::$last_inline_script_end_pos is the only offset that is used.
                         }
                         self::$inline_script_conditional    = $conditional;
@@ -2607,6 +2608,9 @@ if ( defined( 'WP_ADMIN' ) ) {
         }
     } );
 } else {
+    # Although "version 3/w3tc-minify-helper-v3.php" is written as a plugin, its current location in a subdirectory of this plugin's
+    # directory means WordPress will not see it as a plugin. "version 3/w3tc-minify-helper-v3.php" currently is only used to fix a
+    # dangerous dependency on how WP_Scripts::do_item() is implemented by canonicalizing the output of WP_Scripts::do_item().
     include_once( 'version 3/w3tc-minify-helper-v3.php' );
     // add_action( 'wp_loaded', function() {
     # MC_Alt_W3TC_Minify::init() must run before Minify_Plugin::init()
