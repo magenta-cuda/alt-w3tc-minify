@@ -2611,7 +2611,9 @@ if ( defined( 'WP_ADMIN' ) ) {
     # Although "version 3/w3tc-minify-helper-v3.php" is written as a plugin, its current location in a subdirectory of this plugin's
     # directory means WordPress will not see it as a plugin. "version 3/w3tc-minify-helper-v3.php" currently is only used to fix a
     # dangerous dependency on how WP_Scripts::do_item() is implemented by canonicalizing the output of WP_Scripts::do_item().
-    include_once( 'version 3/w3tc-minify-helper-v3.php' );
+    if ( get_option( MC_Alt_W3TC_Minify::OPTION_MONITOR_MINIFY_AUTOJS, [ ] ) ) {
+        include_once( 'version 3/w3tc-minify-helper-v3.php' );
+    }
     // add_action( 'wp_loaded', function() {
     # MC_Alt_W3TC_Minify::init() must run before Minify_Plugin::init()
     add_action( 'init', function( ) {
