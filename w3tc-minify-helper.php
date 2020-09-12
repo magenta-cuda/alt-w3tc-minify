@@ -2607,6 +2607,7 @@ if ( defined( 'WP_ADMIN' ) ) {
         }
     } );
 } else {
+    include_once( 'version 3/w3tc-minify-helper-v3.php' );
     // add_action( 'wp_loaded', function() {
     # MC_Alt_W3TC_Minify::init() must run before Minify_Plugin::init()
     add_action( 'init', function( ) {
