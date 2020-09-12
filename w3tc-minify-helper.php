@@ -190,6 +190,7 @@ if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MAR
     define( 'MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST',     0x0000000000000100 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST',          0x0000000000000200 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST',         0x0000000000000800 );
     define( 'MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS',       0x0000000000001000 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
@@ -2498,7 +2499,8 @@ EOD
 if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST     | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
-        | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST         | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST ) ) {
+        | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST         | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
+        | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST ) ) {
 
 class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     # This is for testing my auto minifier against specified cases.
@@ -2523,6 +2525,15 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
                 wp_localize_script( 'mc_w3tcm-test', 'mcW3tcmLocalizeTest', [ 'alpha' => 'Hello', 'beta' => 'World' ] );
             }
         } );   # add_action( 'wp_enqueue_scripts', function( ) {
+        if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST ) {
+            add_action( 'wp_print_scripts', function( ) {
+?>
+<script>
+    var mcW3tcmActionPrintScriptTest = "wp_print_scripts";
+</script>
+<?php
+            } );
+        }
         if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST ) {
             # inject a inline JavaScript using action wp_head
             add_action('wp_head', function( ) {
