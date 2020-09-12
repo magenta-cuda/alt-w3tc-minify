@@ -29,7 +29,12 @@ class AWM_WP_Scripts extends WP_Scripts {
     public function do_item($handle, $group = false) {
         $obj = $this->registered[$handle];
         error_log('AWM_WP_Scripts::do_item():$obj->src=' . $obj->src);
-        return parent::do_item($handle, $group);
+        ob_start(function($buffer) {
+            return preg_replace('#</script>.*?<!\[endif\]-->#ms', "</script>\n<![endif]--><!-- canonicalized by W3TC minify helper v3 -->", $buffer);
+        });
+        $return = parent::do_item($handle, $group);
+        ob_end_flush();
+        return $return;
     }
 }
 
