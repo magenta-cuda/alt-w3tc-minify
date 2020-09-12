@@ -38,15 +38,35 @@ class AWM_WP_Scripts extends WP_Scripts {
     }
 }
 
-add_action('widgets_init', function() {
-    global $wp_scripts;
-    error_log('$wp_scripts=' . print_r($wp_scripts, true));
-    # In order to overload WP_Scripts this code must execute before the first call to function wp_scripts() in file
-    # ".../wp-includes/functions.wp-scripts.php". Currently (WordPress 5.5.1) the action 'widgets_init' with priority 1
-    # is a good way to do this.
-    if (!($wp_scripts instanceof WP_Scripts)) {
-        $wp_scripts = new AWM_WP_Scripts();
-    } else {
-        error_log( 'Plugin W3TC Minify Helper V3 failed to create AWM_WP_Scripts as the global $wp_scripts.' );
+class AWM_Init {
+    const TRANSIENT_NAME = 'mc_alt_w3tc_minify_v3';
+
+    public static function init() {
+        add_action('widgets_init', function() {
+            global $wp_scripts;
+            error_log('$wp_scripts=' . print_r($wp_scripts, true));
+            # In order to overload WP_Scripts this code must execute before the first call to function wp_scripts() in file
+            # ".../wp-includes/functions.wp-scripts.php". Currently (WordPress 5.5.1) the action 'widgets_init' with priority 1
+            # is a good way to do this.
+            if (!($wp_scripts instanceof WP_Scripts)) {
+                $wp_scripts = new AWM_WP_Scripts();
+            } else {
+                $notice = 'Plugin W3TC Minify Helper V3 failed to create AWM_WP_Scripts as the global $wp_scripts.';
+                error_log($notice);
+                set_transient(self::TRANSIENT_NAME, $notice);
+            }
+        }, 1);
+        add_action('admin_init', function() {
+            if (is_admin() && !wp_doing_ajax() && ($notice = get_transient(self::TRANSIENT_NAME))) {
+                add_action('admin_notices', function() use ($notice) {
+                    ?>
+<div class="notice notice-info is-dismissible"><?php echo $notice; ?></div>
+                    <?php
+                });
+                delete_transient(self::TRANSIENT_NAME);
+            }
+        });
     }
-}, 1);
+}
+
+AWM_Init::init();
