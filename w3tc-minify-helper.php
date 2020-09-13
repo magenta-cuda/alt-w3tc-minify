@@ -205,7 +205,9 @@ if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MAR
                                    # | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST
                                    # | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
-                                   | MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST
+                                   | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TRANSLATIONS_TEST
+                                   # | MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS
                                    #                                           1234567812345678
                                    | get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 )
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
@@ -2528,7 +2530,7 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
             }
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TRANSLATIONS_TEST ) {
                 # inject translations for test script
-                wp_set_script_translations( 'mc_w3tcm-test', 'mc_w3tcm-test' );
+                wp_set_script_translations( 'mc_w3tcm-test', 'mc_w3tcm-test', __DIR__ . '/languages' );
             }
         } );   # add_action( 'wp_enqueue_scripts', function( ) {
         if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST ) {
