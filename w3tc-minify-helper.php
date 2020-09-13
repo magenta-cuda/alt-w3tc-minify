@@ -50,6 +50,7 @@
  *    wp_add_inline_script()
  *    wp_script_add_data()
  *    wp_localize_script()
+ *    wp_set_script_translations()
  *
  * Using ad hoc methods to embed scripts into the HTML document may invalidate assumptions made by this plugin and
  * cause this plugin to malfunction.
@@ -178,20 +179,21 @@
 #                                              1234567812345678
 # if ( get_option( 'mc_alt_w3tc_minify_debug', 0x0000000000000000 ) || array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST ) ) {
 if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS
-    #                                                                   1234567812345678
-    define( 'MC_AWM_191208_DEBUG_OFF',                                0x0000000000000000 );
-    define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                 0x0000000000000001 );   # This enables WP-CLI unit testing
-    define( 'MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER',       0x0000000000000002 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST',                 0x0000000000000004 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST', 0x0000000000000010 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST',  0x0000000000000020 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST'  , 0x0000000000000040 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST',      0x0000000000000080 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST',     0x0000000000000100 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST',          0x0000000000000200 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',        0x0000000000000400 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST',         0x0000000000000800 );
-    define( 'MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS',       0x0000000000001000 );
+    #                                                                        1234567812345678
+    define( 'MC_AWM_191208_DEBUG_OFF',                                     0x0000000000000000 );
+    define( 'MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER',                      0x0000000000000001 );   # This enables WP-CLI unit testing
+    define( 'MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER',            0x0000000000000002 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_UNIT_TEST',                      0x0000000000000004 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST',      0x0000000000000010 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST',       0x0000000000000020 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST'  ,      0x0000000000000040 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST',           0x0000000000000080 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST',          0x0000000000000100 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST',               0x0000000000000200 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST',             0x0000000000000400 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST',              0x0000000000000800 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TRANSLATIONS_TEST', 0x0000000000001000 );
+    define( 'MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MARKERS',            0x0000000000010000 );
     define( 'MC_AWM_191208_DEBUG',   MC_AWM_191208_DEBUG_OFF
                                    # | MC_AWM_191208_DEBUG_WP_CLI_UNIT_TESTER
                                    # | MC_AWM_191208_DEBUG_AUTO_JS_MINIFY_ERROR_HANDLER
@@ -2500,7 +2502,7 @@ if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_
         | MC_AWM_191208_DEBUG_MINIFIER_INLINE_AFTER_SCRIPT_TEST | MC_AWM_191208_DEBUG_MINIFIER_CONDITIONAL_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST     | MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST
         | MC_AWM_191208_DEBUG_MINIFIER_HEAD_SCRIPT_TEST         | MC_AWM_191208_DEBUG_MINIFIER_FOOTER_SCRIPT_TEST
-        | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST ) ) {
+        | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST        | MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TRANSLATIONS_TEST ) ) {
 
 class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     # This is for testing my auto minifier against specified cases.
@@ -2523,6 +2525,10 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_LOCALIZE_SCRIPT_TEST ) {
                 # inject a localize inline JavaScript for test script
                 wp_localize_script( 'mc_w3tcm-test', 'mcW3tcmLocalizeTest', [ 'alpha' => 'Hello', 'beta' => 'World' ] );
+            }
+            if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TRANSLATIONS_TEST ) {
+                # inject translations for test script
+                wp_set_script_translations( 'mc_w3tcm-test', 'mc_w3tcm-test' );
             }
         } );   # add_action( 'wp_enqueue_scripts', function( ) {
         if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_PRINT_SCRIPT_TEST ) {
