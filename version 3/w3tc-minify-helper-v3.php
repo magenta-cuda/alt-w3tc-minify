@@ -28,7 +28,7 @@
 class AWM_WP_Scripts extends WP_Scripts {
     public function do_item($handle, $group = false) {
         $obj = $this->registered[$handle];
-        error_log('AWM_WP_Scripts::do_item():$obj->src=' . $obj->src);
+        # error_log('AWM_WP_Scripts::do_item():$obj->src=' . $obj->src);
         ob_start(function($buffer) {
             return preg_replace('#</script>.*?<!\[endif\]-->#ms', "</script>\n<![endif]--><!-- canonicalized by W3TC minify helper v3 -->", $buffer);
         });
@@ -44,7 +44,7 @@ class AWM_Init {
     public static function init() {
         add_action('widgets_init', function() {
             global $wp_scripts;
-            error_log('$wp_scripts=' . print_r($wp_scripts, true));
+            # error_log('$wp_scripts=' . print_r($wp_scripts, true));
             # In order to overload WP_Scripts this code must execute before the first call to function wp_scripts() in file
             # ".../wp-includes/functions.wp-scripts.php". Currently (WordPress 5.5.1) the action 'widgets_init' with priority 1
             # is a good way to do this.
@@ -60,7 +60,7 @@ class AWM_Init {
             if (is_admin() && !wp_doing_ajax() && ($notice = get_transient(self::TRANSIENT_NAME))) {
                 add_action('admin_notices', function() use ($notice) {
                     ?>
-<div class="notice notice-info is-dismissible"><?php echo $notice; ?></div>
+<div class="notice notice-error is-dismissible"><?php echo $notice; ?></div>
                     <?php
                 });
                 delete_transient(self::TRANSIENT_NAME);
