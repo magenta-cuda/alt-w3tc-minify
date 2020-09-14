@@ -58,8 +58,9 @@ class AWM_Init {
         }, 1);
         add_action('wp_print_scripts', function() {
             # Stop WordPress from also doing script concatenation.
+            global $concatenate_scripts;
             global $wp_scripts;
-            $wp_scripts->do_concat = false;
+            $wp_scripts->do_concat = $concatenate_scripts = false;
         });
         add_action('admin_init', function() {
             if (is_admin() && !wp_doing_ajax() && ($notice = get_transient(self::TRANSIENT_NAME))) {

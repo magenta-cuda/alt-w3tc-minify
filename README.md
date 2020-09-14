@@ -40,6 +40,7 @@ This plugin in "auto minify" mode assumes that only the WordPress API, i.e., onl
     wp_add_inline_script()
     wp_script_add_data()
     wp_localize_script()
+    wp_set_script_translations()
 
 **Using ad hoc methods to embed scripts into the HTML document may invalidate assumptions made by this plugin and cause this plugin to malfunction.**
 
