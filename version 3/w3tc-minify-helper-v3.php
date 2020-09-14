@@ -56,6 +56,11 @@ class AWM_Init {
                 set_transient(self::TRANSIENT_NAME, $notice);
             }
         }, 1);
+        add_action('wp_print_scripts', function() {
+            # Stop WordPress from also doing script concatenation.
+            global $wp_scripts;
+            $wp_scripts->do_concat = false;
+        });
         add_action('admin_init', function() {
             if (is_admin() && !wp_doing_ajax() && ($notice = get_transient(self::TRANSIENT_NAME))) {
                 add_action('admin_notices', function() use ($notice) {
