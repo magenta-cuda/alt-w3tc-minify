@@ -2511,7 +2511,9 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     public static function init() {
         add_action( 'wp_enqueue_scripts', function( ) {
             $in_footer = (boolean) ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST );
-            wp_enqueue_script( 'mc_w3tcm-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test.js', [], FALSE, $in_footer );
+            wp_enqueue_script( 'mc_w3tcm-test-head', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test-head.js', [], FALSE, $in_footer );
+            wp_enqueue_script( 'mc_w3tcm-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test.js', ['mc_w3tcm-test-head'], FALSE, $in_footer );
+            wp_enqueue_script( 'mc_w3tcm-test-tail', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test-tail.js', ['mc_w3tcm-test'], FALSE, $in_footer );
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_INLINE_BEFORE_SCRIPT_TEST ) {
                 # inject a inline JavaScript before the test script
                 wp_add_inline_script( 'mc_w3tcm-test', 'var mcW3tcmBeforeTest="BEFORE";', 'before' );
