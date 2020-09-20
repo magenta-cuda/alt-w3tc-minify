@@ -368,10 +368,8 @@ EOD;
     # $minify_filename is the index into the array $minify_filenames which is saved in the option 'w3tc_minify'.
     private static $minify_filename           = NULL;
     # For inline scripts save the tag position and whether the script was conditional or not.
-    # private static $inline_script_tag_pos     = NULL;  # currently not used as the alternative solution does not need this
     private static $end_head_tag_pos          = NULL;   # not NULL only when process_script_tag() is processing the </head> tag
     private static $inline_script_conditional = NULL;
-    # private static $inline_script_embed_pos   = NULL;  # currently not used as the alternative solution does not need this
     private static $first_inline_script_start_pos = NULL;
     private static $first_inline_script_end_pos   = NULL;
     private static $last_inline_script_start_pos  = NULL;
@@ -1492,7 +1490,6 @@ EOD
                             // $data['script_tag_new'] = "<!-- mc_w3tcm: inline start -->{$data['script_tag_original']}<!-- mc_w3tcm: inline end -->\n";
                             $data['script_tag_new'] = "<!-- mc_w3tcm: inline replaced. -->\n";
                         }
-                        # self::$inline_script_tag_pos     = $data['script_tag_pos'];
                         # Minify_AutoJs::process_script_tag() does not update embed_pos when processing inline scripts.
                         # So, track location of the first and the last inline script as these can be used to compute a better embed_pos.
                         if ( self::$first_inline_script_start_pos === NULL ) {
@@ -1678,15 +1675,9 @@ EOD
                             // PHP Fatal error:  Uncaught Error: Cannot access private property W3TC\Minify_AutoJs::$buffer
                             // if ( self::$inline_script_conditional ) {
                             //     self::$inline_script_embed_pos = strpos( $minify_auto_js->buffer, '<![endif]-->', self::$inline_script_tag_pos ) + 11;
-                            // } else {
-                            //     self::$inline_script_embed_pos = self::$inline_script_tag_pos;
                             // }
-                            // error_log( 'FILTER::w3tc_minify_js_do_flush_collected():substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256)='
-                            //     . substr( $minify_auto_js->buffer, self::$inline_script_embed_pos - 8, 256) );
                             // Alternatively, instead of embedding the minified combined script file after the last script we
                             // can embed just before the </head> tag and escape the need to maintain the 'embed_pos' value.
-                            # Clear the inline script data.
-                            # self::$inline_script_tag_pos     = NULL;
                             self::$inline_script_conditional = NULL;
                             return FALSE;   # Prevent W3TC's Minify_AutoJs::flush_collected() from executing.
                         } else if ( self::$conditional_scripts && in_array( $last_script_tag, self::$conditional_scripts )
