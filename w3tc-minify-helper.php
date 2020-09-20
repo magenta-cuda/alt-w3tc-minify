@@ -2534,7 +2534,7 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_ASYNC_SCRIPT_TEST ) {
                 wp_enqueue_script( 'mc_w3tcm-async-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-async-test.js', ['mc_w3tcm-test'], FALSE, $in_footer );
                 add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
-                    return $handle === 'mc_w3tcm-async-test' ? str_replace( ' src', ' async="async" src', $tag ) : $tag;
+                    return $handle === 'mc_w3tcm-async-test' ? preg_replace( '#>#', ' async>', $tag, 1 ) : $tag;
                 }, 10, 3 );
             }
         } );   # add_action( 'wp_enqueue_scripts', function( ) {
