@@ -217,7 +217,7 @@ if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MAR
                                    | ( array_key_exists( 'mc_alt_w3tc_minify_debug', $_REQUEST )
                                        ? intval( $_REQUEST['mc_alt_w3tc_minify_debug'], 16 ) : 0x0000000000000000 )
     );
-    error_log( 'MC_AWM_191208_DEBUG=' . MC_AWM_191208_DEBUG );
+    # error_log( 'MC_AWM_191208_DEBUG=' . sprintf( '%016X', MC_AWM_191208_DEBUG ) );
 }
 
 class MC_Alt_W3TC_Minify {
@@ -2508,6 +2508,9 @@ if ( defined( 'MC_AWM_191208_DEBUG' ) && MC_AWM_191208_DEBUG & (  MC_AWM_191208_
 class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
     # This is for testing my auto minifier against specified cases.
     public static function init() {
+        add_action( 'wp_head', function( ) {
+            printf( "\n<!-- ##### MC_AWM_191208_DEBUG = 0x%016X ##### -->\n", MC_AWM_191208_DEBUG );
+        }, 8 );
         add_action( 'wp_enqueue_scripts', function( ) {
             $in_footer = (boolean) ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_IN_FOOTER_SCRIPT_TEST );
             wp_enqueue_script( 'mc_w3tcm-test-head', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-test-head.js', [], FALSE, $in_footer );
