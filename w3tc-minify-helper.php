@@ -2534,13 +2534,17 @@ class MC_Alt_W3TC_Minify_Script_Tester extends MC_Alt_W3TC_Minify {
                 wp_set_script_translations( 'mc_w3tcm-test', 'mc_w3tcm-test', __DIR__ . '/languages' );
             }
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_ASYNC_SCRIPT_TEST ) {
-                wp_enqueue_script( 'mc_w3tcm-async-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-async-test.js', ['mc_w3tcm-test'], FALSE, $in_footer );
+                wp_enqueue_script( 'mc_w3tcm-async-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-async-test.js', ['mc_w3tcm-test'],
+                    FALSE, $in_footer );
+                wp_enqueue_script( 'mc_w3tcm-async-test-tail', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-async-test-tail.js',
+                    ['mc_w3tcm-async-test'], FALSE, $in_footer );
                 add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
                     return $handle === 'mc_w3tcm-async-test' ? preg_replace( '#>#', ' async>', $tag, 1 ) : $tag;
                 }, 10, 3 );
             }
             if ( MC_AWM_191208_DEBUG & MC_AWM_191208_DEBUG_MINIFIER_DEFER_SCRIPT_TEST ) {
-                wp_enqueue_script( 'mc_w3tcm-defer-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-defer-test.js', ['mc_w3tcm-test-head'], FALSE, $in_footer );
+                wp_enqueue_script( 'mc_w3tcm-defer-test', plugin_dir_url(__FILE__) . 'test/mc_w3tcm-defer-test.js', ['mc_w3tcm-test'],
+                    FALSE, $in_footer );
                 add_filter( 'script_loader_tag', function( $tag, $handle, $src ) {
                     return $handle === 'mc_w3tcm-defer-test' ? preg_replace( '#>#', ' defer>', $tag, 1 ) : $tag;
                 }, 10, 3 );
