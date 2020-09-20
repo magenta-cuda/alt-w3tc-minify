@@ -1649,8 +1649,11 @@ EOD
         # The filter 'w3tc_minify_js_do_flush_collected' is used to do this by returning FALSE.
         if ( self::non_short_circuit_or( self::$auto_minify,
                 $monitor = ! empty( $options['FILTER::w3tc_minify_js_do_flush_collected'] ) ) ) {
-            add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js )
+            add_filter( 'w3tc_minify_js_do_flush_collected', function( $do_flush_collected, $last_script_tag, $minify_auto_js, $sync_type )
                     use ( $monitor ) {
+                if ( $sync_type !== 'sync' ) {
+                    return $do_flush_collected;
+                }
                 if ( $monitor ) {
                     error_log( 'FILTER::w3tc_minify_js_do_flush_collected():' );
                     self::print_r( $do_flush_collected, '$do_flush_collected' );
@@ -1702,7 +1705,7 @@ EOD
                     }
                 }
                 return $do_flush_collected;
-            }, 10, 3 );
+            }, 10, 4 );
         }
         if ( self::non_short_circuit_or( self::$auto_minify, $monitor = ! empty( $options['FILTER::w3tc_minify_js_step'] ) ) ) {
             add_filter( 'w3tc_minify_js_step', function( $data ) use ( $monitor ) {
