@@ -1852,6 +1852,7 @@ EOD
         # to the PHP server for JavaScript (and CSS) files that were not directly resolved by the server filesystem.
         # Hence, if the first way is used to write URLs for minified files when the customized .htaccess file exists the server will
         # return 404 HTTP responses. I don't know why but this scenario has occurred.
+        # One way to fix this problem is to toggle the "Rewrite URL structure" checkbox in the "Performance/Minify" section of W3TC's admin page.
         if ( ( substr( $_SERVER['REQUEST_URI'], 0, $w3tc_cache_minify_dir_prefix_len ) === $w3tc_cache_minify_dir_prefix
                 || ! empty( $_REQUEST['w3tc_minify'] ) )
             && ( $ob_level = ob_get_level() ) <= 2 && ( empty( $_SERVER['SCRIPT_NAME'] ) || $_SERVER['SCRIPT_NAME'] !== 'wp-cli.phar' ) ) {
