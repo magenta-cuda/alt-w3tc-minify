@@ -1732,13 +1732,12 @@ EOD
                     # self::print_r( $data,                    '$data'                    );
                     self::print_r( $data['files_to_minify'], '$data["files_to_minify"]' );
                 }
+                # FILTER 'w3tc_minify_js_step' is also called for scripts with async and defer attributes.
+                # However, we only need to handle minification of 'sync' scripts.
+                if ( $data['embed_type'] === 'nb-async' || $data['embed_type'] === 'nb-defer' ) {
+                    return $data;
+                }
                 if ( self::$auto_minify ) {
-                    // FILTER 'w3tc_minify_js_step' is also called for scripts with async and defer attributes.
-                    // self::$files_to_minify[] only tracks 'sync' scripts and the following tests will fail but it is not an error,
-                    // as we only handle minification of 'sync' scripts. Unfortunately the $data array does not have any item that
-                    // will tell us if the scripts are 'sync, 'async' or 'defer'.
-                    // TODO: Find some ad hoc way of determining if the scripts are 'sync', 'async' or 'defer' and skip the following
-                    //       if the scripts are not 'sync'.
                     if ( array_diff( $data['files_to_minify'], self::$files_to_minify ) ) {
                         error_log( 'MC_Alt_W3TC_Minify Error: The shadow $files_to_minify is out of sync.[1]' );
                         error_log( 'MC_Alt_W3TC_Minify Error: $data[\'files_to_minify\']=' . print_r( $data['files_to_minify'], true ) );
