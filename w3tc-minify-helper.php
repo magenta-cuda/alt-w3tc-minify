@@ -1550,16 +1550,28 @@ EOD
                         # error_log( 'FILTER::w3tc_minify_js_do_tag_minification():HTML comment conditional script=' . $script_tag . '####' );
                         return false;
                     }
-                    if ( $do_tag_minification ) {
-                        # Update the $files_to_minify shadow.
-                        self::$files_to_minify[] = $file;
+                    if ( preg_match( '#\s+(async|defer)(\s|>)#is', $script_tag, $matches ) ) {
+                        $sync_type = strtolower( $matches[1] );
                     } else {
-                        # Update the $files_to_minify shadow with NULL to keep synchronization.
-                        self::$files_to_minify[] = NULL;
-                        #if $do_tag_minification == FALSE then this script is skipped
-                        if ( $monitor ) {
-                            error_log( "FILTER::w3tc_minify_js_do_tag_minification():\"{$filename}\" skipped " );
+                        $sync_type = 'sync';
+                    }
+                    error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$sync_type=' . $sync_type );
+                    error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$script_tag='
+                        . substr( $script_tag, 0, 64 ) . ( strlen( $script_tag ) > 64 ? '...' : '' ) );
+                    if ( $sync_type === 'sync' ) {
+                        if ( $do_tag_minification ) {
+                            # Update the $files_to_minify shadow.
+                            self::$files_to_minify[] = $file;
+                        } else {
+                            # Update the $files_to_minify shadow with NULL to keep synchronization.
+                            self::$files_to_minify[] = NULL;
+                            #if $do_tag_minification == FALSE then this script is skipped
+                            if ( $monitor ) {
+                                error_log( "FILTER::w3tc_minify_js_do_tag_minification():\"{$filename}\" skipped " );
+                            }
                         }
+                    } else {
+                        // TODO: Processing for async/defer scripts currently may not be handled correctly!
                     }
                     if ( $monitor ) {
                         error_log( 'FILTER::w3tc_minify_js_do_tag_minification():' );
