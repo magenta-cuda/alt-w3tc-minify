@@ -223,7 +223,7 @@ if ( TRUE ) {   # TODO: for testing MC_AWM_191208_DEBUG_MINIFIER_EMIT_INLINE_MAR
 class MC_Alt_W3TC_Minify {
     const PLUGIN_NAME                  = 'W3TC Minify Helper';
     const W3TC_FILE                    = 'w3-total-cache/w3-total-cache.php';
-    const W3TC_VERSION                 = '0.14.4';                                     # tested against this version of W3TC
+    const W3TC_VERSION                 = '0.15.0';                                     # tested against this version of W3TC
     const OPTION_NAME                  = 'mc_alt_w3tc_minify';
     const OPTION_LOG_NAME              = 'mc_alt_w3tc_minify_log';
     const OPTION_SKIPPED_NAME          = 'mc_alt_w3tc_minify_skipped';
@@ -1555,9 +1555,9 @@ EOD
                     } else {
                         $sync_type = 'sync';
                     }
-                    error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$sync_type=' . $sync_type );
-                    error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$script_tag='
-                        . substr( $script_tag, 0, 256 ) . ( strlen( $script_tag ) > 256 ? '...' : '' ) );
+                    # error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$sync_type=' . $sync_type );
+                    # error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$script_tag='
+                    #     . substr( $script_tag, 0, 256 ) . ( strlen( $script_tag ) > 256 ? '...' : '' ) );
                     if ( $sync_type === 'sync' ) {
                         if ( $do_tag_minification ) {
                             # Update the $files_to_minify shadow.
