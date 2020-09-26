@@ -1557,7 +1557,7 @@ EOD
                     }
                     error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$sync_type=' . $sync_type );
                     error_log( 'FILTER::w3tc_minify_js_do_tag_minification():$script_tag='
-                        . substr( $script_tag, 0, 64 ) . ( strlen( $script_tag ) > 64 ? '...' : '' ) );
+                        . substr( $script_tag, 0, 256 ) . ( strlen( $script_tag ) > 256 ? '...' : '' ) );
                     if ( $sync_type === 'sync' ) {
                         if ( $do_tag_minification ) {
                             # Update the $files_to_minify shadow.
@@ -1571,6 +1571,8 @@ EOD
                             }
                         }
                     } else {
+                        # Update the $files_to_minify shadow with NULL to keep synchronization.
+                        self::$files_to_minify[] = NULL;
                         // TODO: Processing for async/defer scripts currently may not be handled correctly!
                     }
                     if ( $monitor ) {
