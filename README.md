@@ -64,8 +64,8 @@ the code in WordPress's wp-includes/template-loader.php. Unfortunately it doesn'
 apply the filter 'template_include' causing it to return the wrong theme if this
 filter overrides the theme selected by the code in wp-includes/template-loader.php.
 
-In May 2020 I again checked the code of Minify_Plugin::get_template() for version 0.13.3
-of W3TC against the code of template-loader.php for version 5.4.1 of WordPress.
+In September 2020 I again checked the code of Minify_Plugin::get_template() for version 0.15.0
+of W3TC against the code of template-loader.php for version 5.5.1 of WordPress.
 Minify_Plugin::get_template() is now even more out of sync. The correct implementation of
 Minify_Plugin::get_template() is dependent on it being a faithful duplicate of the
 code in WordPress's wp-includes/template-loader.php. This requires W3TC to manual
