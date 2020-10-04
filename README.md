@@ -3,10 +3,11 @@
 In September 2020 W3TC released a new version 0.15.0. With respect to JavaScript
 minification my analysis is still valid. The problems found in the analysis have not
 been fixed. Further, in testing I noticed that the caches were being rebuilt on every request.
-The problem is in the function Minify_Cache_File::isValid() the filename doesn't match the
+The problem is in the function Minify_Cache_File::isValid() in the file
+".../w3-total-cache/lib/Minify/Minify/Cache/File.php" the filename doesn't match the
 actual filename, e.g., "cf7a7.js.gzip" != "cf7a7.js_gzip" where the first is the filename used
 in the function Minify_Cache_File::isValid() and the second is the real filename on the disk.
-In the function serve Minify0_Minify::serve() we have:
+In the function serve Minify0_Minify::serve() in the file ".../w3-total-cache/lib/Minify/Minify.php" we have:
 
     $cacheId = self::_getCacheId();
     $fullCacheId = (self::$_options['encodeMethod'])
@@ -15,7 +16,7 @@ In the function serve Minify0_Minify::serve() we have:
     // check cache for valid entry
     $cacheIsReady = self::$_cache->isValid($fullCacheId, self::$_options['lastModifiedTime']);
 
-- observe the " . '.' . ".
+observe the " . '.' . " in the third line.
 
 ## The YUI Compressor does not always work.
 
