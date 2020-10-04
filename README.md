@@ -2,7 +2,10 @@
 
 In September 2020 W3TC released a new version 0.15.0. With respect to JavaScript
 minification my analysis is still valid. The problems found in the analysis have not
-been fixed.
+been fixed. Further, in testing I noticed that the caches were being rebuilt on every request.
+The problem is in the function Minify_Cache_File::isValid() the filename doesn't match the
+actual filename, e.g., "cf7a7.js.gzip" != "cf7a7.js_gzip" where the first is the filename used
+in the function Minify_Cache_File::isValid() and the second is the real filename on the disk.
 
 ## The YUI Compressor does not always work.
 
