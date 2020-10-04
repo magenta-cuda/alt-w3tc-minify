@@ -6,6 +6,16 @@ been fixed. Further, in testing I noticed that the caches were being rebuilt on 
 The problem is in the function Minify_Cache_File::isValid() the filename doesn't match the
 actual filename, e.g., "cf7a7.js.gzip" != "cf7a7.js_gzip" where the first is the filename used
 in the function Minify_Cache_File::isValid() and the second is the real filename on the disk.
+In the function serve Minify0_Minify::serve() we have:
+
+    $cacheId = self::_getCacheId();
+    $fullCacheId = (self::$_options['encodeMethod'])
+        ? $cacheId . '.' . self::$_options['encodeMethod']
+        : $cacheId;
+    // check cache for valid entry
+    $cacheIsReady = self::$_cache->isValid($fullCacheId, self::$_options['lastModifiedTime']);
+
+- observe the " . '.' . ".
 
 ## The YUI Compressor does not always work.
 
