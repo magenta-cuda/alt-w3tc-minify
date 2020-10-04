@@ -18,6 +18,27 @@ In the function serve Minify0_Minify::serve() in the file ".../w3-total-cache/li
 
 observe the " . '.' . " in the third line.
 
+Also in the same function we later have:
+
+    if (function_exists('brotli_compress') && self::$_options['encodeMethod'] === 'br' && self::$_options['encodeOutput']) {
+        $compressed = $content;
+        $compressed['content'] = brotli_compress($content['content']);
+
+        self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
+            $compressed);
+    }
+    if (function_exists('gzencode') && self::$_options['encodeMethod'] && self::$_options['encodeMethod'] !== 'br' && self::$_options['encodeOutput']) {
+        $compressed = $content;
+        $compressed['content'] = gzencode($content['content'],
+            self::$_options['encodeLevel']);
+
+        self::$_cache->store($cacheId . '_' . self::$_options['encodeMethod'],
+            $compressed);
+    }
+
+observe the " . '_' . " in the third line.
+
+
 ## The YUI Compressor does not always work.
 
 After unsuccessfully trying to get JavaScript minification using the "YUI Compressor" to work
