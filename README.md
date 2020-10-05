@@ -36,7 +36,7 @@ Also in the same function we later have:
             $compressed);
     }
 
-observe the " . '_' . " in the third line.
+observe the " . '_' . " in the fifth and thirteen lines.
 
 
 ## The YUI Compressor does not always work.
