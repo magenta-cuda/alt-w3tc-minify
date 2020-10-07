@@ -43,7 +43,8 @@ observe the " . '_' . " in the fifth and thirteen lines.
 
 After unsuccessfully trying to get JavaScript minification using the "YUI Compressor" to work
 I read the source code and found a very serious coding problem.  Errors from the "YUI Compressor"
-are not handled correctly. (When the minifier fails W3TC returns a HTML error message. See
+are not handled correctly. (When the minifier fails W3TC returns a HTML error message (or a HTTP
+500 response depending on configuration settings). See
 Minify_MinifiedFileRequestHandler::finish_with_error() in the file
 ".../w3-total-cache/Minify_MinifiedFileRequestHandler.php". However, instead
 it would be better to return the uncompressed source so that the web page would still work.)
